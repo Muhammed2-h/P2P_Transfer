@@ -6,8 +6,6 @@
     Settings,
     Volume2,
     VolumeX,
-    Clock,
-    Trash2,
     X,
   } from "lucide-svelte";
   import { settings } from "../stores/settings";
@@ -28,12 +26,6 @@
   }
 
   let showSettings = false;
-
-  function useRecentPeer(peer) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("code", peer);
-    window.location.href = url.toString();
-  }
 </script>
 
 <header>
@@ -131,47 +123,6 @@
           >
             <div class="switch-knob"></div>
           </button>
-        </div>
-
-        <!-- Recent Peers -->
-        <div class="settings-section column">
-          <div class="section-header">
-            <div class="icon-wrap">
-              <Clock size={20} class="text-primary" />
-            </div>
-            <div class="text-wrap">
-              <h4>Recent Devices</h4>
-              <p>Quickly reconnect to your past sessions</p>
-            </div>
-          </div>
-
-          <div class="recent-list">
-            {#if $settings.recentPeers.length > 0}
-              {#each $settings.recentPeers as peer}
-                <div class="peer-item glass-panel">
-                  <span class="peer-code">{peer}</span>
-                  <div class="item-actions">
-                    <button
-                      class="btn-connect"
-                      on:click={() => useRecentPeer(peer)}
-                    >
-                      Connect
-                    </button>
-                    <button
-                      class="btn-delete"
-                      on:click={() => settings.removeRecentPeer(peer)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              {/each}
-            {:else}
-              <div class="empty-recent">
-                <p>No recent devices found</p>
-              </div>
-            {/if}
-          </div>
         </div>
       </div>
     </div>
@@ -425,14 +376,7 @@
     align-items: center;
   }
 
-  .settings-section.column {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .section-info,
-  .section-header {
+  .section-info {
     display: flex;
     align-items: flex-start;
     gap: 1rem;
@@ -480,70 +424,5 @@
 
   .toggle-switch.active .switch-knob {
     transform: translateX(20px);
-  }
-
-  .recent-list {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .peer-item {
-    padding: 0.75rem 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(255, 255, 255, 0.03);
-  }
-
-  .peer-code {
-    font-family: monospace;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--primary-color);
-    letter-spacing: 1px;
-  }
-
-  .item-actions {
-    display: flex;
-    gap: 0.5rem;
-  }
-
-  .btn-connect {
-    padding: 0.4rem 0.75rem;
-    background: rgba(99, 102, 241, 0.1);
-    color: var(--primary-color);
-    border: 1px solid var(--primary-color);
-    border-radius: var(--radius-sm);
-    font-size: 0.8rem;
-    font-weight: 600;
-  }
-
-  .btn-connect:hover {
-    background: var(--primary-color);
-    color: white;
-  }
-
-  .btn-delete {
-    padding: 0.4rem;
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
-  }
-
-  .btn-delete:hover {
-    color: var(--danger);
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .empty-recent {
-    text-align: center;
-    padding: 1.5rem;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    border: 1px dashed var(--glass-border);
-    border-radius: var(--radius-md);
   }
 </style>

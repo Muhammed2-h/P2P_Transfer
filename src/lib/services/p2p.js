@@ -32,8 +32,6 @@ class P2PService {
     // --- Signaling ---
 
     init(sessionId, isSender) {
-        this.sessionId = sessionId;
-        this.isSender = isSender;
         const role = isSender ? 'sender' : 'receiver';
         transfer.update(s => ({ ...s, sessionId, role, state: TRANSFER_STATES.CONNECTING }));
 
@@ -150,12 +148,6 @@ class P2PService {
             // Audible Ping
             if (get(settings).soundsEnabled) {
                 playSound('connect');
-            }
-
-            // Record recent peer if we are receiver
-            const idToSave = this.sessionId || get(transfer).sessionId;
-            if (!this.isSender && idToSave) {
-                settings.addRecentPeer(idToSave);
             }
         };
 
