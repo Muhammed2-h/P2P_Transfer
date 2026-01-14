@@ -5,7 +5,7 @@ import { get } from 'svelte/store';
 // Configurations
 const CHUNK_SIZE = 64 * 1024; // 64KB
 const BUFFER_THRESHOLD = 1024 * 1024; // 1MB (Wait if buffer exceeds this)
-const SIGNALING_SERVER = 'http://localhost:3000'; // Dev URL
+const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000'; // Dynamic URL for production
 
 const ICE_SERVERS = {
     iceServers: [
