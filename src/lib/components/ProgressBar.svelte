@@ -1,22 +1,8 @@
 <script>
+  import { formatBytes, formatTime } from "../utils/format";
   export let progress = 0; // 0 to 100
   export let speed = 0; // bytes per sec
   export let timeLeft = 0; // seconds
-
-  function formatBytes(bytes) {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-
-  function formatTime(seconds) {
-    if (!seconds || !isFinite(seconds)) return '--';
-    const m = Math.floor(seconds / 60);
-    const s = Math.floor(seconds % 60);
-    return `${m}m ${s}s`;
-  }
 </script>
 
 <div class="progress-container">
@@ -49,7 +35,11 @@
 
   .bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+    background: linear-gradient(
+      90deg,
+      var(--primary-color),
+      var(--accent-color)
+    );
     transition: width 0.2s ease;
     box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
   }

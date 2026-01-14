@@ -9,22 +9,7 @@
         UploadCloud,
     } from "lucide-svelte";
 
-    function formatSize(bytes) {
-        if (bytes === 0) return "0 Bytes";
-        const k = 1024;
-        const sizes = ["Bytes", "KB", "MB", "GB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-    }
-
-    function formatDate(iso) {
-        return new Date(iso).toLocaleDateString([], {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    }
+    import { formatBytes, formatDate } from "../utils/format";
 </script>
 
 <section class="history-section fade-in">
@@ -64,7 +49,7 @@
                     <div class="file-info">
                         <div class="name-row">
                             <span class="name">{item.name}</span>
-                            <span class="size">{formatSize(item.size)}</span>
+                            <span class="size">{formatBytes(item.size)}</span>
                         </div>
                         <div class="meta-row">
                             <span class="date">{formatDate(item.date)}</span>

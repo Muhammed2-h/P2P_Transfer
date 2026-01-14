@@ -6,8 +6,9 @@ import { playSound } from '../utils/sounds';
 import { settings } from '../stores/settings';
 
 // Configurations
-const CHUNK_SIZE = 64 * 1024; // 64KB
-const BUFFER_THRESHOLD = 1024 * 1024; // 1MB (Wait if buffer exceeds this)
+const CHUNK_SIZE = 128 * 1024; // 128KB
+const BUFFER_THRESHOLD = 8 * 1024 * 1024; // 8MB buffer to keep the pipe full
+const UI_UPDATE_INTERVAL = 150; // ms (Throttle progress updates for performance)
 const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000'; // Dynamic URL for production
 
 const ICE_SERVERS = {
@@ -27,6 +28,8 @@ class P2PService {
         this.currentFile = null;
         this.startTime = null;
         this.isPaused = false;
+        this.lastUiUpdate = 0;
+        this.transferredBytes = 0; // Local counter for speed
     }
 
     // --- Signaling ---
@@ -38,7 +41,6 @@ class P2PService {
         this.socket = io(SIGNALING_SERVER);
 
         this.socket.on('connect', () => {
-            console.log('Connected to signaling server');
             this.socket.emit('join-room', { roomId: sessionId, role });
         });
 
@@ -89,7 +91,6 @@ class P2PService {
         };
 
         this.peerConnection.onconnectionstatechange = () => {
-            console.log('Connection state:', this.peerConnection.connectionState);
             if (this.peerConnection.connectionState === 'disconnected' || this.peerConnection.connectionState === 'failed') {
                 this.cleanup();
                 transfer.update(s => ({ ...s, error: 'Peer disconnected', state: TRANSFER_STATES.IDLE }));
@@ -142,7 +143,6 @@ class P2PService {
         channel.binaryType = 'arraybuffer';
 
         channel.onopen = () => {
-            console.log('Data Channel OPEN');
             transfer.update(s => ({ ...s, state: TRANSFER_STATES.CONNECTED }));
 
             // Audible Ping
@@ -162,7 +162,7 @@ class P2PService {
         };
 
         // For backpressure
-        channel.bufferedAmountLowThreshold = CHUNK_SIZE;
+        channel.bufferedAmountLowThreshold = BUFFER_THRESHOLD / 4;
     }
 
     // --- Sending Logic ---
@@ -269,17 +269,22 @@ class P2PService {
         }
 
         this.startTime = Date.now();
+        this.lastUiUpdate = this.startTime;
+        this.transferredBytes = 0;
         let offset = 0;
 
         const readSlice = async (o) => {
-            const slice = file.slice(offset, offset + CHUNK_SIZE);
+            const slice = file.slice(o, o + CHUNK_SIZE);
             return await slice.arrayBuffer();
         };
 
         const flush = async () => {
+            // Pipeline: Start reading the first chunk immediately
+            let nextChunkPromise = readSlice(offset);
+
             while (offset < file.size) {
+                // Check backpressure
                 if (this.dataChannel.bufferedAmount > BUFFER_THRESHOLD) {
-                    // Wait for buffer to drain
                     await new Promise(resolve => {
                         this.dataChannel.onbufferedamountlow = () => {
                             this.dataChannel.onbufferedamountlow = null;
@@ -288,6 +293,24 @@ class P2PService {
                     });
                 }
 
+                // Wait for the chunk that was being read
+                const chunk = await nextChunkPromise;
+
+                // Move offset forward
+                offset += chunk.byteLength;
+                this.transferredBytes = offset;
+
+                // Start reading the NEXT chunk while we send the current one
+                if (offset < file.size) {
+                    nextChunkPromise = readSlice(offset);
+                }
+
+                this.dataChannel.send(chunk);
+
+                // Throttle UI
+                this.updateProgress(offset, false);
+
+                // Pause logic
                 if (this.isPaused) {
                     await new Promise(resolve => {
                         const check = setInterval(() => {
@@ -295,18 +318,12 @@ class P2PService {
                                 clearInterval(check);
                                 resolve();
                             }
-                        }, 100);
+                        }, 50);
                     });
                 }
-
-                const chunk = await readSlice(offset);
-                this.dataChannel.send(chunk);
-
-                offset += chunk.byteLength;
-                this.updateProgress(offset);
             }
 
-            // Done
+            this.updateProgress(file.size, true);
             this.dataChannel.send(JSON.stringify({ type: 'EOF' }));
         };
 
@@ -385,7 +402,6 @@ class P2PService {
 
             case 'CANCEL':
                 await this.stopCurrentTransfer();
-                console.log('Transfer cancelled by peer');
                 break;
 
             case 'PAUSE':
@@ -399,7 +415,6 @@ class P2PService {
                 break;
 
             case 'DISCONNECT':
-                console.log('Peer disconnected cleanly');
                 this.cleanup();
                 transfer.update(s => ({ ...s, error: 'Peer left session', state: TRANSFER_STATES.IDLE }));
                 break;
@@ -408,6 +423,7 @@ class P2PService {
 
     async acceptFile() {
         const s = get(transfer);
+        this.transferredBytes = 0; // Reset for receiver
         await this.initFileSystem(s.fileName, s.totalSize);
 
         // Check if initFileSystem succeeded (state might be ERROR if cancelled)
@@ -438,9 +454,8 @@ class P2PService {
     async handleChunk(buffer) {
         if (this.fileWriter) {
             await this.fileWriter.write(buffer);
-
-            const current = get(transfer).bytesTransferred + buffer.byteLength;
-            this.updateProgress(current);
+            this.transferredBytes += buffer.byteLength;
+            this.updateProgress(this.transferredBytes);
         }
     }
 
@@ -489,9 +504,11 @@ class P2PService {
 
     // --- Utils ---
 
-    updateProgress(bytes) {
-        const state = get(transfer);
+    updateProgress(bytes, force = false) {
         const now = Date.now();
+        if (!force && now - this.lastUiUpdate < UI_UPDATE_INTERVAL) return;
+
+        this.lastUiUpdate = now;
         const elapsed = (now - this.startTime) / 1000; // seconds
         const speed = bytes / elapsed; // bytes/sec
 

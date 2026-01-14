@@ -145,22 +145,6 @@
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   }
 
-  .h-full {
-    height: 100%;
-  }
-
-  .flex {
-    display: flex;
-  }
-
-  .items-center {
-    align-items: center;
-  }
-
-  .justify-between {
-    justify-content: space-between;
-  }
-
   .logo {
     display: flex;
     align-items: center;

@@ -1,24 +1,29 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/icon.png" />
-    <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#6366f1" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>WarpShare - P2P File Transfer</title>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
-        });
-      }
-    </script>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/png" href="/icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description"
+    content="Premium, high-speed, end-to-end encrypted P2P file transfer. Share massive files directly between devices without size limits." />
+  <title>WarpShare - P2P File Transfer</title>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
+</head>
+
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
 </html>

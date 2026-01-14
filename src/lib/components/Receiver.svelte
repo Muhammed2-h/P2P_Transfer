@@ -5,7 +5,6 @@
     import ProgressBar from "./ProgressBar.svelte";
     import {
         Download,
-        FileQuestion,
         UploadCloud,
         X,
         RefreshCw,
@@ -13,7 +12,6 @@
         Play,
         XCircle,
     } from "lucide-svelte";
-    import { settings } from "../stores/settings";
 
     import TextSync from "./TextSync.svelte";
 
@@ -349,20 +347,6 @@
         }
     }
 
-    .status-box {
-        margin-bottom: 2rem;
-        text-align: center;
-    }
-
-    .status-indicator {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-    }
-
     .btn-link {
         background: transparent;
         color: var(--text-secondary);
@@ -390,19 +374,6 @@
         to {
             transform: rotate(360deg);
         }
-    }
-
-    .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--text-secondary);
-        display: inline-block;
-    }
-
-    .dot.active {
-        background: var(--success);
-        box-shadow: 0 0 10px var(--success);
     }
 
     .queue-list-receiver {
@@ -603,27 +574,5 @@
         gap: 0.5rem;
         align-items: center;
         justify-content: flex-end;
-    }
-
-    .btn-refresh-icon {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--border-color);
-        color: var(--text-secondary);
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        margin-left: 0.75rem;
-        transition: all 0.2s ease;
-    }
-
-    .btn-refresh-icon:hover {
-        background: rgba(99, 102, 241, 0.1);
-        border-color: var(--primary-color);
-        color: var(--primary-color);
-        transform: rotate(180deg);
-    }
-
-    .btn-refresh-icon:active {
-        transform: rotate(360deg) scale(0.9);
     }
 </style>
