@@ -75,14 +75,24 @@
                 maxlength="6"
                 on:keydown={(e) => e.key === "Enter" && joinSession()}
             />
-            <button class="btn-primary" on:click={joinSession} disabled={!code}>
+            <button
+                class="btn-primary"
+                on:click={joinSession}
+                disabled={!code || state === TRANSFER_STATES.CONNECTING}
+            >
                 {#if state === TRANSFER_STATES.CONNECTING}
+                    <RefreshCw size={18} class="spin" />
                     Connecting...
                 {:else}
                     Connect
                 {/if}
             </button>
         </div>
+        {#if state === TRANSFER_STATES.CONNECTING}
+            <button class="btn-link" on:click={() => p2p.cleanup()}
+                >Cancel & Try Again</button
+            >
+        {/if}
         {#if $transfer.error}
             <p class="error-msg">{$transfer.error}</p>
         {/if}
@@ -266,27 +276,51 @@
 <style>
     .receiver-container {
         max-width: 600px;
-        margin: 2rem auto;
-        padding: 2rem;
+        margin: 1rem auto;
+        padding: 1.5rem;
+        width: calc(100% - 2rem);
+    }
+
+    @media (min-width: 640px) {
+        .receiver-container {
+            margin: 2rem auto;
+            padding: 2rem;
+            width: 100%;
+        }
     }
 
     .input-group {
         display: flex;
-        gap: 1rem;
-        margin: 2rem 0;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin: 1.5rem 0;
+    }
+
+    @media (min-width: 480px) {
+        .input-group {
+            flex-direction: row;
+        }
     }
 
     input {
         flex: 1;
-        padding: 1rem;
+        padding: 0.75rem 1rem;
         background: var(--surface-color-2);
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         color: var(--text-primary);
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         letter-spacing: 0.1em;
         text-align: center;
         text-transform: uppercase;
+        width: 100%;
+    }
+
+    @media (min-width: 640px) {
+        input {
+            padding: 1rem;
+            font-size: 1.25rem;
+        }
     }
 
     .status-box {
@@ -294,13 +328,50 @@
         text-align: center;
     }
 
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    .btn-link {
+        background: transparent;
+        color: var(--text-secondary);
+        border: none;
+        font-size: 0.9rem;
+        text-decoration: underline;
+        cursor: pointer;
+        margin: 0 auto 1.5rem;
+        display: block;
+        transition: color 0.2s;
+    }
+
+    .btn-link:hover {
+        color: var(--primary-color);
+    }
+
+    :global(.spin) {
+        animation: spin 1.5s linear infinite;
+    }
+
+    @keyframes spin {
+        from {
+            transform: rotate(0deg);
+        }
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
     .dot {
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         background: var(--text-secondary);
         display: inline-block;
-        margin-right: 0.5rem;
     }
 
     .dot.active {
@@ -312,10 +383,21 @@
         margin-bottom: 2rem;
     }
 
+    .queue-list-receiver h3 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+    }
+
     .queue-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1rem;
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    @media (min-width: 540px) {
+        .queue-grid {
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        }
     }
 
     .queue-card {
@@ -324,8 +406,35 @@
         border-radius: var(--radius-md);
         padding: 1rem;
         display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    @media (min-width: 540px) {
+        .queue-card {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.75rem;
+        }
+    }
+
+    .file-icon {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: var(--radius-sm);
+        color: var(--primary-color);
+    }
+
+    @media (min-width: 540px) {
+        .file-icon {
+            width: 48px;
+            height: 48px;
+        }
     }
 
     .file-details {
@@ -333,6 +442,14 @@
         display: flex;
         flex-direction: column;
         overflow: hidden;
+        text-align: left;
+    }
+
+    @media (min-width: 540px) {
+        .file-details {
+            text-align: center;
+            width: 100%;
+        }
     }
 
     .fname {
@@ -340,6 +457,7 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        font-size: 0.95rem;
     }
 
     .fsize {
@@ -347,81 +465,60 @@
         color: var(--text-secondary);
     }
 
-    .btn-download {
-        width: 100%;
+    .action-area {
+        flex-shrink: 0;
+    }
+
+    @media (min-width: 540px) {
+        .action-area {
+            width: 100%;
+        }
+    }
+
+    .btn-download,
+    .btn-xs {
+        width: auto;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        padding: 0.5rem;
+        padding: 0.5rem 1rem;
         background: var(--surface-color-2);
         border: 1px solid var(--primary-color);
         color: var(--primary-color);
         border-radius: var(--radius-sm);
         cursor: pointer;
         transition: all 0.2s;
+        font-size: 0.85rem;
     }
 
-    .btn-download:hover {
+    @media (min-width: 540px) {
+        .btn-download,
+        .btn-xs {
+            width: 100%;
+        }
+    }
+
+    .btn-download:hover,
+    .btn-xs:hover {
         background: var(--primary-color);
         color: white;
     }
 
     .btn-xs {
-        width: 100%;
-        padding: 0.5rem;
         background: var(--primary-color);
         color: white;
-        border: none;
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        font-weight: 500;
-        transition: 0.2s;
-    }
-
-    .btn-xs:hover {
-        background: var(--primary-hover);
     }
 
     .status-text {
-        display: block;
-        text-align: center;
         font-size: 0.85rem;
         color: var(--text-secondary);
-    }
-
-    .text-success {
-        color: var(--success);
-    }
-
-    .accept-modal {
-        background: rgba(0, 0, 0, 0.5);
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 100;
-    }
-
-    .modal-content {
-        background: var(--surface-color);
-        padding: 2rem;
-        border-radius: var(--radius-md);
-        border: 1px solid var(--primary-color);
-        text-align: center;
-        max-width: 400px;
-        width: 90%;
-        position: relative;
     }
 
     .drop-zone-mini {
         border: 2px dashed var(--border-color);
         border-radius: var(--radius-md);
-        padding: 1.5rem;
+        padding: 1.25rem;
         text-align: center;
         margin-bottom: 2rem;
         cursor: pointer;
@@ -429,110 +526,56 @@
         background: rgba(255, 255, 255, 0.02);
     }
 
+    .drop-zone-mini p {
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+    }
+
     .drop-zone-mini:hover {
         border-color: var(--primary-color);
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(99, 102, 241, 0.05);
     }
 
-    .icon-small {
-        color: var(--primary-color);
-        margin-bottom: 0.5rem;
-        display: flex;
-        justify-content: center;
+    .drop-zone-mini:hover p {
+        color: var(--text-primary);
     }
 
-    .close-btn {
-        position: absolute;
-        top: 0.5rem;
-        right: 0.5rem;
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        padding: 0.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        transition: all 0.2s;
+    .modal-content {
+        padding: 2rem 1.5rem;
+        width: calc(100% - 2rem);
+        max-width: 400px;
     }
 
-    .close-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: white;
-    }
-
-    .error-msg {
-        color: var(--error);
-        margin-top: 1rem;
-        text-align: center;
-        background: rgba(239, 68, 68, 0.1);
-        padding: 0.75rem;
-        border-radius: var(--radius-sm);
-        border: 1px solid var(--error);
-    }
-
-    .btn-refresh-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent;
-        border: none;
-        color: var(--text-secondary);
-        cursor: pointer;
-        margin-left: 0.5rem;
-        padding: 0.25rem;
-        border-radius: 50%;
-        transition: all 0.2s;
-    }
-
-    .btn-refresh-icon:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: var(--warning);
+    .transfer-status {
+        margin-top: 1.5rem;
     }
 
     .status-header {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
+        flex-direction: column;
+        gap: 1rem;
         margin-bottom: 1rem;
     }
 
-    .btn-icon {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.5rem;
-        border-radius: 50%;
-        transition: all 0.2s;
+    @media (min-width: 480px) {
+        .status-header {
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+        }
     }
 
-    .btn-icon:hover {
-        background: rgba(255, 255, 255, 0.1);
+    .status-header h3 {
+        font-size: 1.1rem;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
     }
 
     .transfer-controls {
         display: flex;
         gap: 0.5rem;
         align-items: center;
-    }
-
-    .btn-icon-danger {
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.5rem;
-        border-radius: 50%;
-        transition: all 0.2s;
-    }
-
-    .btn-icon-danger:hover {
-        background: rgba(239, 68, 68, 0.1);
+        justify-content: flex-end;
     }
 </style>

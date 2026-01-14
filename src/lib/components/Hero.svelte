@@ -52,53 +52,99 @@
 <style>
   .hero {
     max-width: 800px;
-    margin: 4rem auto;
-    padding: 4rem 2rem;
+    margin: 2rem auto;
+    padding: 3rem 1.5rem;
     text-align: center;
   }
 
+  @media (min-width: 768px) {
+    .hero {
+      margin: 4rem auto;
+      padding: 4rem 2rem;
+    }
+  }
+
   h1 {
-    font-size: 3.5rem;
+    font-size: 2.25rem;
     font-weight: 800;
     line-height: 1.1;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    h1 {
+      font-size: 3.5rem;
+    }
   }
 
   .subtitle {
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     color: var(--text-secondary);
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
+  }
+
+  @media (min-width: 768px) {
+    .subtitle {
+      font-size: 1.25rem;
+    }
   }
 
   .actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  @media (min-width: 768px) {
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      max-width: none;
+    }
   }
 
   .action-btn {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
+    padding: 1.25rem;
     text-align: left;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid var(--border-color);
+  }
+
+  @media (min-width: 768px) {
+    .action-btn {
+      gap: 1.5rem;
+    }
   }
 
   .action-btn:hover {
     transform: translateY(-5px);
     border-color: var(--primary-color);
     background: var(--surface-color-2);
+    box-shadow: 0 10px 20px -5px rgba(99, 102, 241, 0.2);
   }
 
   .icon-circle {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+  }
+
+  @media (min-width: 768px) {
+    .icon-circle {
+      width: 60px;
+      height: 60px;
+    }
   }
 
   .icon-circle.send {
@@ -112,21 +158,34 @@
   }
 
   h2 {
-    font-size: 1.5rem;
-    margin-bottom: 0.25rem;
+    font-size: 1.25rem;
+    margin-bottom: 0.15rem;
     color: white;
+  }
+
+  @media (min-width: 768px) {
+    h2 {
+      font-size: 1.5rem;
+    }
   }
 
   .text p {
     color: var(--text-secondary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   .arrow {
     margin-left: auto;
-    opacity: 0;
-    transform: translateX(-10px);
+    opacity: 0.3;
+    transform: translateX(0);
     transition: all 0.3s ease;
+  }
+
+  @media (min-width: 768px) {
+    .arrow {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
   }
 
   .action-btn:hover .arrow {
@@ -135,12 +194,8 @@
   }
 
   @media (max-width: 768px) {
-    .actions {
-      grid-template-columns: 1fr;
-    }
-
-    h1 {
-      font-size: 2.5rem;
+    h1 br {
+      display: none;
     }
   }
 

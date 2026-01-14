@@ -278,25 +278,42 @@
 <style>
   .sender-container {
     max-width: 600px;
-    margin: 2rem auto;
-    padding: 2rem;
+    margin: 1rem auto;
+    padding: 1.5rem;
+    width: calc(100% - 2rem);
+  }
+
+  @media (min-width: 640px) {
+    .sender-container {
+      margin: 2rem auto;
+      padding: 2rem;
+      width: 100%;
+    }
   }
 
   .session-info {
-    margin: 2rem 0;
+    margin: 1.5rem 0;
     text-align: center;
   }
 
   .label {
     color: var(--text-secondary);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
   }
 
   .code-wrapper {
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 1rem;
+  }
+
+  @media (min-width: 480px) {
+    .code-wrapper {
+      flex-direction: row;
+    }
   }
 
   .code-box {
@@ -305,34 +322,33 @@
     justify-content: center;
     gap: 1rem;
     background: var(--surface-color-2);
-    padding: 1rem;
+    padding: 0.75rem 1.25rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--border-color);
+    width: 100%;
+    max-width: 300px;
   }
 
   .code {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     font-family: monospace;
     color: var(--primary-color);
   }
 
+  @media (min-width: 640px) {
+    .code {
+      font-size: 2rem;
+    }
+  }
+
   .copy-btn {
     background: transparent;
     color: var(--text-secondary);
     padding: 0.5rem;
-  }
-
-  .copy-btn:hover {
-    color: var(--primary-color);
-  }
-
-  .copied-text {
-    font-size: 0.8rem;
-    color: var(--success);
-    font-weight: bold;
-    animation: fade-in 0.2s ease;
+    display: flex;
+    align-items: center;
   }
 
   .status-indicator {
@@ -342,11 +358,12 @@
     gap: 0.5rem;
     margin-bottom: 2rem;
     color: var(--text-secondary);
+    font-size: 0.9rem;
   }
 
   .dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--text-secondary);
   }
@@ -359,11 +376,21 @@
   .drop-zone {
     border: 2px dashed var(--border-color);
     border-radius: var(--radius-md);
-    padding: 3rem;
+    padding: 2rem 1rem;
     text-align: center;
     position: relative;
     transition: all 0.3s ease;
     cursor: pointer;
+  }
+
+  @media (min-width: 640px) {
+    .drop-zone {
+      padding: 3rem;
+    }
+  }
+
+  .drop-zone p {
+    font-size: 0.95rem;
   }
 
   .drop-zone:hover:not(.disabled) {
@@ -376,239 +403,142 @@
     cursor: not-allowed;
   }
 
-  .drop-zone input {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    opacity: 0;
-    cursor: inherit;
-  }
-
   .icon {
     margin-bottom: 1rem;
     color: var(--text-secondary);
   }
 
-  .drop-zone:hover:not(.disabled) .icon {
-    color: var(--primary-color);
-  }
-
-  .transfer-status {
-    margin-top: 2rem;
-  }
-
-  .status-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-  }
-
-  .btn-icon-danger {
-    background: transparent;
-    padding: 0.5rem;
-    border-radius: 50%;
-    transition: background 0.2s;
-  }
-
-  .btn-icon-danger:hover {
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .completion-box {
-    text-align: center;
-    margin-top: 2rem;
-  }
-
   .queue-list {
-    margin: 2rem 0;
-    padding: 1.5rem;
+    margin: 1.5rem 0;
+    padding: 1.25rem;
     border: 1px solid var(--border-color);
   }
 
   .queue-list h3 {
     margin-bottom: 1rem;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
   }
 
   .queue-item {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
     background: rgba(255, 255, 255, 0.03);
     border-radius: var(--radius-sm);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     border: 1px solid var(--border-color);
   }
 
-  .file-info {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .file-name {
-    font-weight: 500;
-  }
-
-  .file-size {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+  @media (min-width: 480px) {
+    .queue-item {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
   }
 
   .file-actions {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    width: 100%;
     gap: 1rem;
   }
 
-  .status-badge {
-    text-transform: capitalize;
-    font-size: 0.8rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 50px;
-    background: rgba(255, 255, 255, 0.1);
-  }
-
-  .status-transferring {
-    color: var(--warning);
-    background: rgba(234, 179, 8, 0.1);
-  }
-
-  .status-completed {
-    color: var(--success);
-    background: rgba(16, 185, 129, 0.1);
+  @media (min-width: 480px) {
+    .file-actions {
+      width: auto;
+    }
   }
 
   .btn-xs {
-    padding: 0.25rem 0.75rem;
-    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
     background: var(--primary-color);
     color: white;
     border-radius: var(--radius-sm);
-    cursor: pointer;
-    transition: 0.2s;
+    flex: 1;
+    text-align: center;
   }
 
-  .btn-xs:hover {
-    background: var(--primary-hover);
+  @media (min-width: 480px) {
+    .btn-xs {
+      flex: none;
+      padding: 0.25rem 0.75rem;
+    }
   }
 
   .btn-download {
-    background: var(--surface-color);
+    background: transparent;
     border: 1px solid var(--primary-color);
     color: var(--primary-color);
   }
 
-  .btn-download:hover {
-    background: var(--primary-color);
-    color: white;
-  }
-
-  .accept-modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(5px);
-  }
-
-  .modal-content {
-    padding: 2rem;
-    max-width: 400px;
-    width: 90%;
-    text-align: center;
-    position: relative;
-    border: 1px solid var(--primary-color);
-  }
-
-  .close-modal-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-    border-radius: 50%;
-    padding: 0.25rem;
-  }
-
-  .close-modal-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
-  }
-
-  .btn-refresh-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary);
-    cursor: pointer;
-    margin-left: 0.5rem;
-    padding: 0.25rem;
-    border-radius: 50%;
-    transition: all 0.2s;
-  }
-
-  .btn-refresh-icon:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--warning);
+  /* ... rest of the styles ... */
+  .transfer-status {
+    margin-top: 1.5rem;
   }
 
   .status-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (min-width: 480px) {
+    .status-header {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+
+  .status-header h3 {
+    font-size: 1.1rem;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
   }
 
   .transfer-controls {
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    justify-content: flex-end;
   }
 
-  .btn-icon {
-    background: transparent;
-    border: none;
-    cursor: pointer;
+  .btn-icon,
+  .btn-icon-danger {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0.5rem;
     border-radius: 50%;
-    transition: all 0.2s;
+    color: var(--text-primary);
   }
 
   .btn-icon:hover {
     background: rgba(255, 255, 255, 0.1);
-  }
-
-  .btn-icon-danger {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem;
-    border-radius: 50%;
-    transition: all 0.2s;
+    border-color: var(--text-secondary);
   }
 
   .btn-icon-danger:hover {
     background: rgba(239, 68, 68, 0.1);
+    border-color: var(--error);
+  }
+
+  .accept-modal {
+    padding: 1rem;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 400px;
+    padding: 2rem 1.5rem;
   }
 </style>

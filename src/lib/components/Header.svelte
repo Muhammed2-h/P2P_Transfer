@@ -132,6 +132,24 @@
     transition: all 0.2s;
   }
 
+  @media (max-width: 640px) {
+    header {
+      height: 70px;
+    }
+
+    .logo-text {
+      display: none;
+    }
+
+    .secure-badge span {
+      display: none;
+    }
+
+    .secure-badge {
+      padding: 0.5rem;
+    }
+  }
+
   .btn-sm:hover {
     background: rgba(239, 68, 68, 0.2);
   }
@@ -139,33 +157,53 @@
   .confirm-group {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-size: 0.875rem;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
     color: white;
     background: rgba(255, 255, 255, 0.05);
-    padding: 0.35rem 0.75rem;
+    padding: 0.35rem 0.6rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--glass-border);
+  }
+
+  @media (min-width: 640px) {
+    .confirm-group {
+      gap: 0.75rem;
+      font-size: 0.875rem;
+      padding: 0.35rem 0.75rem;
+    }
   }
 
   .btn-confirm {
     background: var(--error);
     color: white;
     border: none;
-    padding: 0.25rem 0.75rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.75rem;
     font-weight: 600;
   }
 
+  @media (min-width: 640px) {
+    .btn-confirm {
+      padding: 0.25rem 0.75rem;
+    }
+  }
+
   .btn-cancel {
     background: rgba(255, 255, 255, 0.1);
     color: white;
     border: none;
-    padding: 0.25rem 0.75rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .btn-cancel {
+      padding: 0.25rem 0.75rem;
+    }
   }
 </style>
