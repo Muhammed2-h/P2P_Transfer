@@ -261,6 +261,7 @@
 
     textarea {
         width: 100%;
+        max-width: 100%;
         min-height: 120px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid var(--border-color);
