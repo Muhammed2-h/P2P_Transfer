@@ -6,6 +6,7 @@
   import Hero from "./lib/components/Hero.svelte";
   import Sender from "./lib/components/Sender.svelte";
   import Receiver from "./lib/components/Receiver.svelte";
+  import PWAInstall from "./lib/components/PWAInstall.svelte";
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
@@ -28,6 +29,8 @@
 <main class="container">
   <svelte:component this={ViewComponent} />
 </main>
+
+<PWAInstall />
 
 <style>
   main {

@@ -626,5 +626,4 @@
     .btn-refresh-icon:active {
         transform: rotate(360deg) scale(0.9);
     }
-    }
 </style>
