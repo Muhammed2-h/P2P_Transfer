@@ -1,9 +1,17 @@
 <script>
     import { transfer } from "../stores/transfer";
     import { p2p } from "../services/p2p";
-    import { Copy, Trash2, Type, Eraser } from "lucide-svelte";
+    import {
+        Copy,
+        Type,
+        Eraser,
+        ChevronDown,
+        ChevronUp,
+        MessageSquareText,
+    } from "lucide-svelte";
 
     let isCopied = false;
+    let isExpanded = false;
 
     function handleInput(e) {
         p2p.sendSharedText(e.target.value);
@@ -24,48 +32,167 @@
     }
 </script>
 
-<div class="text-sync glass-panel fade-in">
-    <div class="text-header">
-        <div class="header-title">
-            <Type size={18} class="text-primary" />
-            <h3>Instant Text Sync</h3>
-        </div>
-        <div class="header-actions">
-            <button class="icon-btn" on:click={clearText} title="Clear Text">
-                <Eraser size={18} />
-            </button>
-            <button
-                class="copy-btn-sync"
-                on:click={copyToClipboard}
-                class:success={isCopied}
-            >
-                {#if isCopied}
-                    <span class="copied-label">Copied!</span>
-                {:else}
-                    <Copy size={16} />
-                    <span>Copy</span>
+<div class="text-sync-container fade-in">
+    <button
+        class="expand-toggle glass-panel"
+        on:click={() => (isExpanded = !isExpanded)}
+        class:active={isExpanded}
+    >
+        <div class="toggle-content">
+            <div class="icon-label">
+                <MessageSquareText size={20} class="text-primary" />
+                <span>Shared Clipboard</span>
+                {#if $transfer.sharedText && !isExpanded}
+                    <div class="indicator-dot"></div>
                 {/if}
-            </button>
+            </div>
+            {#if isExpanded}
+                <ChevronUp size={20} />
+            {:else}
+                <ChevronDown size={20} />
+            {/if}
         </div>
-    </div>
+    </button>
 
-    <div class="textarea-wrapper">
-        <textarea
-            placeholder="Type or paste text here to share instantly with the other side..."
-            value={$transfer.sharedText}
-            on:input={handleInput}
-        ></textarea>
-    </div>
+    {#if isExpanded}
+        <div class="text-sync glass-panel" class:expanded={isExpanded}>
+            <div class="text-header">
+                <div class="header-title">
+                    <Type size={18} class="text-primary" />
+                    <h3>Instant Text Sync</h3>
+                </div>
+                <div class="header-actions">
+                    <button
+                        class="icon-btn"
+                        on:click={clearText}
+                        title="Clear Text"
+                    >
+                        <Eraser size={18} />
+                    </button>
+                    <button
+                        class="copy-btn-sync"
+                        on:click={copyToClipboard}
+                        class:success={isCopied}
+                    >
+                        {#if isCopied}
+                            <span class="copied-label">Copied!</span>
+                        {:else}
+                            <Copy size={16} />
+                            <span>Copy</span>
+                        {/if}
+                    </button>
+                </div>
+            </div>
+
+            <div class="textarea-wrapper">
+                <textarea
+                    placeholder="Type or paste text here to share instantly with the other side..."
+                    value={$transfer.sharedText}
+                    on:input={handleInput}
+                ></textarea>
+            </div>
+        </div>
+    {/if}
 </div>
 
 <style>
+    .text-sync-container {
+        margin: 1.5rem 0;
+        width: 100%;
+    }
+
+    .expand-toggle {
+        width: 100%;
+        padding: 1rem 1.25rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: var(--radius-md);
+    }
+
+    .expand-toggle:hover {
+        background: rgba(99, 102, 241, 0.05);
+        border-color: var(--primary-color);
+    }
+
+    .expand-toggle.active {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        background: rgba(99, 102, 241, 0.03);
+        border-color: var(--primary-color);
+    }
+
+    .toggle-content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+    }
+
+    .icon-label {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-weight: 600;
+        color: white;
+        position: relative;
+    }
+
+    .indicator-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--accent-color);
+        border-radius: 50%;
+        position: absolute;
+        top: -2px;
+        right: -10px;
+        box-shadow: 0 0 8px var(--accent-color);
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.3);
+            opacity: 0.7;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
     .text-sync {
-        margin: 2rem 0;
         padding: 1.25rem;
         display: flex;
         flex-direction: column;
         gap: 1rem;
-        border: 1px solid var(--glass-border);
+        border: 1px solid var(--primary-color);
+        border-top: none;
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+        background: rgba(15, 15, 20, 0.8);
+        animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        border-bottom-left-radius: var(--radius-md);
+        border-bottom-right-radius: var(--radius-md);
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .text-header {
