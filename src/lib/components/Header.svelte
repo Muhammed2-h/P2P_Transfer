@@ -1,5 +1,16 @@
 <script>
-  import { ShieldCheck, Zap, LogOut } from "lucide-svelte";
+  import {
+    ShieldCheck,
+    Zap,
+    LogOut,
+    Settings,
+    Volume2,
+    VolumeX,
+    Clock,
+    Trash2,
+    X,
+  } from "lucide-svelte";
+  import { settings } from "../stores/settings";
   import { p2p } from "../services/p2p";
   import { transfer, TRANSFER_STATES } from "../stores/transfer";
   import { currentView, VIEWS } from "../stores/nav";
@@ -14,6 +25,16 @@
   function disconnect() {
     p2p.disconnect(); // Disconnects and resets
     showConfirm = false;
+  }
+
+  let showSettings = false;
+
+  function useRecentPeer(peer) {
+    // We notify the Receiver component somehow or just rely on global state?
+    // Actually, the simplest way is to dispatch an event or set a temporary store.
+    // Let's just set the URL and reload or better: just let Receiver listen to a "quickJoin" store?
+    // Let's redirect to HOME and Receiver will handle the URL param.
+    window.location.href = `${window.location.origin}/receive?code=${peer}`;
   }
 </script>
 
@@ -54,8 +75,109 @@
         </div>
       {/if}
     </div>
+
+    <button
+      class="nav-btn settings-btn"
+      on:click={() => (showSettings = true)}
+      title="Settings"
+    >
+      <Settings size={20} />
+    </button>
   </div>
 </header>
+
+{#if showSettings}
+  <div
+    class="modal-overlay"
+    on:click|self={() => (showSettings = false)}
+    on:keydown={(e) => e.key === "Escape" && (showSettings = false)}
+    role="button"
+    tabindex="-1"
+  >
+    <div class="settings-modal glass-panel fade-in">
+      <div class="modal-header">
+        <div class="header-title">
+          <Settings size={20} class="text-primary" />
+          <h3>Settings</h3>
+        </div>
+        <button
+          class="close-btn"
+          on:click={() => (showSettings = false)}
+          aria-label="Close Settings"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Sound Settings -->
+        <div class="settings-section">
+          <div class="section-info">
+            <div class="icon-wrap">
+              {#if $settings.soundsEnabled}
+                <Volume2 size={20} class="text-primary" />
+              {:else}
+                <VolumeX size={20} class="text-secondary" />
+              {/if}
+            </div>
+            <div class="text-wrap">
+              <h4>Sound Notifications</h4>
+              <p>Audible pings for transfer events</p>
+            </div>
+          </div>
+          <button
+            class="toggle-switch"
+            class:active={$settings.soundsEnabled}
+            on:click={settings.toggleSounds}
+          >
+            <div class="switch-knob"></div>
+          </button>
+        </div>
+
+        <!-- Recent Peers -->
+        <div class="settings-section column">
+          <div class="section-header">
+            <div class="icon-wrap">
+              <Clock size={20} class="text-primary" />
+            </div>
+            <div class="text-wrap">
+              <h4>Recent Devices</h4>
+              <p>Quickly reconnect to your past sessions</p>
+            </div>
+          </div>
+
+          <div class="recent-list">
+            {#if $settings.recentPeers.length > 0}
+              {#each $settings.recentPeers as peer}
+                <div class="peer-item glass-panel">
+                  <span class="peer-code">{peer}</span>
+                  <div class="item-actions">
+                    <button
+                      class="btn-connect"
+                      on:click={() => useRecentPeer(peer)}
+                    >
+                      Connect
+                    </button>
+                    <button
+                      class="btn-delete"
+                      on:click={() => settings.removeRecentPeer(peer)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              {/each}
+            {:else}
+              <div class="empty-recent">
+                <p>No recent devices found</p>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <style>
   header {
@@ -213,5 +335,206 @@
     .btn-cancel {
       padding: 0.25rem 0.75rem;
     }
+  }
+  .settings-btn {
+    padding: 0.6rem;
+    border-radius: 50%;
+  }
+
+  .settings-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--primary-color);
+  }
+
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .settings-modal {
+    width: 90%;
+    max-width: 450px;
+    background: #0f0f14;
+    border: 1px solid var(--glass-border);
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .header-title h3 {
+    font-size: 1.25rem;
+    color: white;
+    margin: 0;
+  }
+
+  .close-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .settings-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .settings-section.column {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .section-info,
+  .section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .text-wrap h4 {
+    margin: 0;
+    color: white;
+    font-size: 1rem;
+  }
+
+  .text-wrap p {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .toggle-switch {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: none;
+    padding: 0;
+  }
+
+  .toggle-switch.active {
+    background: var(--primary-color);
+  }
+
+  .switch-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s;
+  }
+
+  .toggle-switch.active .switch-knob {
+    transform: translateX(20px);
+  }
+
+  .recent-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .peer-item {
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .peer-code {
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    letter-spacing: 1px;
+  }
+
+  .item-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-connect {
+    padding: 0.4rem 0.75rem;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .btn-connect:hover {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  .btn-delete {
+    padding: 0.4rem;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+  }
+
+  .btn-delete:hover {
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .empty-recent {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    border: 1px dashed var(--glass-border);
+    border-radius: var(--radius-md);
   }
 </style>

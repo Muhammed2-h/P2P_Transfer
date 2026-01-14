@@ -2,6 +2,8 @@ import { io } from 'socket.io-client';
 import { transfer, TRANSFER_STATES } from '../stores/transfer';
 import { get } from 'svelte/store';
 import { history } from '../stores/history';
+import { playSound } from '../utils/sounds';
+import { settings } from '../stores/settings';
 
 // Configurations
 const CHUNK_SIZE = 64 * 1024; // 64KB

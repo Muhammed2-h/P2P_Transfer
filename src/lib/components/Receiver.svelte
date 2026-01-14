@@ -1,4 +1,5 @@
 <script>
+    import { onMount } from "svelte";
     import { p2p } from "../services/p2p";
     import { transfer, TRANSFER_STATES } from "../stores/transfer";
     import ProgressBar from "./ProgressBar.svelte";
@@ -11,12 +12,26 @@
         Pause,
         Play,
         XCircle,
+        Clock,
     } from "lucide-svelte";
+    import { settings } from "../stores/settings";
 
     import TextSync from "./TextSync.svelte";
 
     let code = "";
     let fileInput;
+
+    onMount(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlCode = urlParams.get("code");
+        if (urlCode) {
+            code = urlCode.toUpperCase();
+            // Automatically join if code is provided via URL
+            setTimeout(() => {
+                if (code.length === 6) joinSession();
+            }, 500);
+        }
+    });
 
     function handleFileSelect(e) {
         const files = Array.from(e.target.files);
@@ -90,6 +105,26 @@
                 {/if}
             </button>
         </div>
+
+        {#if $settings.recentPeers.length > 0}
+            <div class="recent-peers-mini fade-in">
+                <p class="mini-label">Recent Devices:</p>
+                <div class="mini-list">
+                    {#each $settings.recentPeers as peer}
+                        <button
+                            class="mini-peer-btn glass-panel"
+                            on:click={() => {
+                                code = peer;
+                                joinSession();
+                            }}
+                        >
+                            <Clock size={12} />
+                            {peer}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+        {/if}
         {#if state === TRANSFER_STATES.CONNECTING}
             <button class="btn-link" on:click={() => p2p.cleanup()}
                 >Cancel & Try Again</button
@@ -603,5 +638,46 @@
 
     .btn-refresh-icon:active {
         transform: rotate(360deg) scale(0.9);
+    }
+    .recent-peers-mini {
+        margin-top: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .mini-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .mini-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .mini-peer-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .mini-peer-btn:hover {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: var(--primary-color);
+        transform: translateY(-1px);
     }
 </style>

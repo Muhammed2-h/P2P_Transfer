@@ -13,11 +13,15 @@
     File,
     Pause,
     Play,
+    QrCode as QrIcon,
   } from "lucide-svelte";
+  import QRCode from "qrcode";
 
   import TextSync from "./TextSync.svelte";
 
   let sessionId = "";
+  let qrCodeUrl = "";
+  let showQr = false;
   let fileInput;
 
   function initSession() {
@@ -25,6 +29,23 @@
     p2p.cleanup();
     sessionId = uuidv4().slice(0, 6).toUpperCase();
     p2p.init(sessionId, true);
+    generateQrCode();
+  }
+
+  async function generateQrCode() {
+    try {
+      const url = `${window.location.origin}/?code=${sessionId}`;
+      qrCodeUrl = await QRCode.toDataURL(url, {
+        margin: 2,
+        scale: 8,
+        color: {
+          dark: "#ffffff",
+          light: "#00000000",
+        },
+      });
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   onMount(() => {
@@ -111,7 +132,24 @@
             <Copy size={20} />
           {/if}
         </button>
+        <button
+          class="copy-btn qr-toggle-btn"
+          class:active={showQr}
+          on:click={() => (showQr = !showQr)}
+          title="Show QR Code"
+        >
+          <QrIcon size={20} />
+        </button>
       </div>
+
+      {#if showQr && qrCodeUrl}
+        <div class="qr-container fade-in">
+          <div class="qr-box glass-panel">
+            <img src={qrCodeUrl} alt="QR Code" />
+            <p>Scan to connect instantly</p>
+          </div>
+        </div>
+      {/if}
 
       {#if !isConnected}
         <div class="refresh-wrapper">
@@ -568,5 +606,45 @@
 
   .btn-refresh-icon:active {
     transform: rotate(360deg) scale(0.9);
+  }
+  .qr-container {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .qr-box {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+  }
+
+  .qr-box img {
+    width: 200px;
+    height: 200px;
+    border-radius: var(--radius-sm);
+    filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.3));
+  }
+
+  .qr-box p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .code-actions {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .qr-toggle-btn.active {
+    color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--primary-color);
   }
 </style>
