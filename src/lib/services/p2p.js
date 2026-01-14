@@ -359,6 +359,10 @@ class P2PService {
                 }
                 break;
 
+            case 'TEXT_UPDATE':
+                transfer.update(s => ({ ...s, sharedText: msg.text }));
+                break;
+
             case 'READY':
                 // Receiver is ready, sender starts streaming
                 this.startStreaming();
@@ -455,6 +459,16 @@ class P2PService {
                 size: fileItem.size,
                 role: role
             });
+        }
+    }
+
+    sendSharedText(text) {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({
+                type: 'TEXT_UPDATE',
+                text: text
+            }));
+            transfer.update(s => ({ ...s, sharedText: text }));
         }
     }
 

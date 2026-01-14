@@ -13,6 +13,8 @@
         XCircle,
     } from "lucide-svelte";
 
+    import TextSync from "./TextSync.svelte";
+
     let code = "";
     let fileInput;
 
@@ -112,6 +114,8 @@
                 </button>
             </div>
         </div>
+
+        <TextSync />
 
         <!-- Receiver Upload Area -->
         <div

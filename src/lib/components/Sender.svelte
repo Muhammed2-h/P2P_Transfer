@@ -15,6 +15,8 @@
     Play,
   } from "lucide-svelte";
 
+  import TextSync from "./TextSync.svelte";
+
   let sessionId = "";
   let fileInput;
 
@@ -130,6 +132,10 @@
       <RefreshCw size={16} />
     </button>
   </div>
+
+  {#if isConnected}
+    <TextSync />
+  {/if}
 
   {#if !isTransferring && state !== TRANSFER_STATES.COMPLETED}
     <div

@@ -24,7 +24,8 @@ function createTransferStore() {
         error: null,
         sessionId: null,
         currentFileId: null,
-        fileQueue: [] // Array of { id, file, status, name, size }
+        fileQueue: [],
+        sharedText: '' // Shared text between peers
     });
 
     return {
@@ -43,7 +44,8 @@ function createTransferStore() {
             error: null,
             sessionId: null,
             currentFileId: null,
-            fileQueue: []
+            fileQueue: [],
+            sharedText: ''
         })
     };
 }
