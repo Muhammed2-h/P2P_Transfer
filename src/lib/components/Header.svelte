@@ -98,12 +98,20 @@
   }
 
   .logo-text {
-    letter-spacing: -0.02em;
-    color: white; /* Ensure visibility */
+    letter-spacing: -0.04em;
+    color: white;
+    font-weight: 800;
   }
 
   .highlight {
-    color: var(--primary-color);
+    background: linear-gradient(
+      135deg,
+      var(--primary-color),
+      var(--accent-color)
+    );
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 
   .secure-badge {
