@@ -1,10 +1,18 @@
 <script>
+  import { onMount } from "svelte";
   import { currentView, VIEWS } from "./lib/stores/nav";
   import Header from "./lib/components/Header.svelte";
   import Background from "./lib/components/Background.svelte";
   import Hero from "./lib/components/Hero.svelte";
   import Sender from "./lib/components/Sender.svelte";
   import Receiver from "./lib/components/Receiver.svelte";
+
+  onMount(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("code")) {
+      currentView.set(VIEWS.RECEIVER);
+    }
+  });
 
   // Dynamic component Loading
   $: ViewComponent = {

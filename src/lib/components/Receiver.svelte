@@ -27,9 +27,15 @@
         if (urlCode) {
             code = urlCode.toUpperCase();
             // Automatically join if code is provided via URL
-            setTimeout(() => {
-                if (code.length === 6) joinSession();
-            }, 500);
+            if (code.length === 6) {
+                setTimeout(() => {
+                    joinSession();
+                    // Clear the URL to avoid re-triggering on manual refreshes
+                    const newUrl =
+                        window.location.origin + window.location.pathname;
+                    window.history.replaceState({}, document.title, newUrl);
+                }, 300);
+            }
         }
     });
 
@@ -44,7 +50,8 @@
 
     function joinSession() {
         if (code.length === 6) {
-            p2p.init(code.toUpperCase(), false);
+            p2p.cleanup(); // Clean up any stale state first
+            p2p.init(code.trim().toUpperCase(), false);
         }
     }
 

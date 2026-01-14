@@ -30,11 +30,7 @@
   let showSettings = false;
 
   function useRecentPeer(peer) {
-    // We notify the Receiver component somehow or just rely on global state?
-    // Actually, the simplest way is to dispatch an event or set a temporary store.
-    // Let's just set the URL and reload or better: just let Receiver listen to a "quickJoin" store?
-    // Let's redirect to HOME and Receiver will handle the URL param.
-    window.location.href = `${window.location.origin}/receive?code=${peer}`;
+    window.location.href = `${window.location.origin}/?code=${peer}`;
   }
 </script>
 
