@@ -32,6 +32,8 @@ class P2PService {
     // --- Signaling ---
 
     init(sessionId, isSender) {
+        this.sessionId = sessionId;
+        this.isSender = isSender;
         const role = isSender ? 'sender' : 'receiver';
         transfer.update(s => ({ ...s, sessionId, role, state: TRANSFER_STATES.CONNECTING }));
 
@@ -144,6 +146,17 @@ class P2PService {
         channel.onopen = () => {
             console.log('Data Channel OPEN');
             transfer.update(s => ({ ...s, state: TRANSFER_STATES.CONNECTED }));
+
+            // Audible Ping
+            if (get(settings).soundsEnabled) {
+                playSound('connect');
+            }
+
+            // Record recent peer if we are receiver
+            const idToSave = this.sessionId || get(transfer).sessionId;
+            if (!this.isSender && idToSave) {
+                settings.addRecentPeer(idToSave);
+            }
         };
 
         channel.onmessage = async (event) => {
@@ -258,6 +271,10 @@ class P2PService {
     async startStreaming() {
         const file = this.currentFile;
         if (!file) return;
+
+        if (get(settings).soundsEnabled) {
+            playSound('start');
+        }
 
         this.startTime = Date.now();
         let offset = 0;
@@ -439,6 +456,10 @@ class P2PService {
         if (this.fileWriter) {
             await this.fileWriter.close();
             this.fileWriter = null;
+        }
+
+        if (get(settings).soundsEnabled) {
+            playSound('complete');
         }
 
         // Use the ID we stored in METADATA handler

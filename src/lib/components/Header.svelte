@@ -30,7 +30,9 @@
   let showSettings = false;
 
   function useRecentPeer(peer) {
-    window.location.href = `${window.location.origin}/?code=${peer}`;
+    const url = new URL(window.location.href);
+    url.searchParams.set("code", peer);
+    window.location.href = url.toString();
   }
 </script>
 
@@ -125,6 +127,7 @@
             class="toggle-switch"
             class:active={$settings.soundsEnabled}
             on:click={settings.toggleSounds}
+            aria-label="Toggle Sound Notifications"
           >
             <div class="switch-knob"></div>
           </button>
@@ -332,6 +335,16 @@
       padding: 0.25rem 0.75rem;
     }
   }
+  .nav-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
   .settings-btn {
     padding: 0.6rem;
     border-radius: 50%;
