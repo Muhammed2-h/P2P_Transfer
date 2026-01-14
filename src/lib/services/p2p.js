@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { transfer, TRANSFER_STATES } from '../stores/transfer';
 import { get } from 'svelte/store';
+import { history } from '../stores/history';
 
 // Configurations
 const CHUNK_SIZE = 64 * 1024; // 64KB
@@ -337,6 +338,7 @@ class P2PService {
 
             case 'FILE_COMPLETE':
                 this.updateQueueStatus(msg.fileId, 'completed');
+                this.recordHistory(msg.fileId, 'sender');
                 break;
 
             case 'FILE_REJECTED':
@@ -440,9 +442,20 @@ class P2PService {
 
         if (currentId) { // Receiver sends success back
             this.sendTransferSuccess(currentId);
+            this.recordHistory(currentId, 'receiver');
         }
+    }
 
-        alert('Transfer Complete!');
+    recordHistory(fileId, role) {
+        const s = get(transfer);
+        const fileItem = s.fileQueue.find(i => i.id === fileId);
+        if (fileItem) {
+            history.add({
+                name: fileItem.name,
+                size: fileItem.size,
+                role: role
+            });
+        }
     }
 
     // --- Utils ---
