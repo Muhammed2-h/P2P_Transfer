@@ -427,6 +427,16 @@ class P2PService {
                 this.cleanup();
                 transfer.update(s => ({ ...s, error: 'Peer left session', state: TRANSFER_STATES.IDLE }));
                 break;
+
+            case 'CHAT':
+                transfer.update(s => ({
+                    ...s,
+                    messages: [...s.messages, { text: msg.text, sender: 'peer', time: Date.now() }]
+                }));
+                if (get(settings).soundsEnabled) {
+                    playSound('connect'); // Reusing connect sound for now, or add a new one
+                }
+                break;
         }
     }
 
@@ -508,6 +518,20 @@ class P2PService {
                 text: text
             }));
             transfer.update(s => ({ ...s, sharedText: text }));
+        }
+    }
+
+    sendChatMessage(text) {
+        if (!text.trim()) return;
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({
+                type: 'CHAT',
+                text: text
+            }));
+            transfer.update(s => ({
+                ...s,
+                messages: [...s.messages, { text: text, sender: 'me', time: Date.now() }]
+            }));
         }
     }
 

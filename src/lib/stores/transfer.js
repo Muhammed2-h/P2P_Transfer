@@ -25,7 +25,8 @@ function createTransferStore() {
         sessionId: null,
         currentFileId: null,
         fileQueue: [],
-        sharedText: '' // Shared text between peers
+        sharedText: '', // Shared text between peers
+        messages: [] // Chat history
     });
 
     return {
@@ -45,7 +46,8 @@ function createTransferStore() {
             sessionId: null,
             currentFileId: null,
             fileQueue: [],
-            sharedText: ''
+            sharedText: '',
+            messages: []
         })
     };
 }

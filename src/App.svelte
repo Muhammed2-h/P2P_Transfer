@@ -7,6 +7,7 @@
   import Sender from "./lib/components/Sender.svelte";
   import Receiver from "./lib/components/Receiver.svelte";
   import PWAInstall from "./lib/components/PWAInstall.svelte";
+  import Chat from "./lib/components/Chat.svelte";
 
   onMount(() => {
     const params = new URLSearchParams(window.location.search);
@@ -31,6 +32,7 @@
 </main>
 
 <PWAInstall />
+<Chat />
 
 <style>
   main {

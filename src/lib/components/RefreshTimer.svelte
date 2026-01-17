@@ -1,7 +1,7 @@
 <script>
     import { onMount, onDestroy } from "svelte";
 
-    export let duration = 28; // seconds
+    export let duration = 60; // seconds
     export let onRefresh = () => {};
 
     let timeLeft = duration;
