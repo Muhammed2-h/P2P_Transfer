@@ -428,15 +428,35 @@ class P2PService {
                 transfer.update(s => ({ ...s, error: 'Peer left session', state: TRANSFER_STATES.IDLE }));
                 break;
 
-            case 'CHAT':
+            case 'CHAT': {
+                // Determine sender type (image or text)
+                const newMsg = {
+                    id: msg.id, // now sending IDs
+                    text: msg.text,
+                    image: msg.image, // base64 string
+                    replyTo: msg.replyTo,
+                    sender: 'peer',
+                    time: Date.now()
+                };
                 transfer.update(s => ({
                     ...s,
-                    messages: [...s.messages, { text: msg.text, sender: 'peer', time: Date.now() }]
+                    messages: [...s.messages, newMsg]
                 }));
                 if (get(settings).soundsEnabled) {
-                    playSound('connect'); // Reusing connect sound for now, or add a new one
+                    playSound('connect');
                 }
                 break;
+            }
+
+            case 'CHAT_EDIT': {
+                transfer.update(s => ({
+                    ...s,
+                    messages: s.messages.map(m =>
+                        m.id === msg.id ? { ...m, text: msg.text, edited: true } : m
+                    )
+                }));
+                break;
+            }
         }
     }
 
@@ -521,16 +541,46 @@ class P2PService {
         }
     }
 
-    sendChatMessage(text) {
-        if (!text.trim()) return;
+    sendChatMessage(payload) {
+        // payload: { text, image, replyTo }
+        if (!payload.text && !payload.image) return;
+
+        const id = generateUUID();
+        const msgData = {
+            type: 'CHAT',
+            id: id,
+            text: payload.text,
+            image: payload.image,
+            replyTo: payload.replyTo
+        };
+
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
-            this.dataChannel.send(JSON.stringify({
-                type: 'CHAT',
-                text: text
-            }));
+            this.dataChannel.send(JSON.stringify(msgData));
+
+            // Add to local state
             transfer.update(s => ({
                 ...s,
-                messages: [...s.messages, { text: text, sender: 'me', time: Date.now() }]
+                messages: [...s.messages, { ...msgData, sender: 'me', time: Date.now() }]
+            }));
+        }
+    }
+
+    sendChatEdit(id, newText) {
+        if (!id || !newText.trim()) return;
+
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({
+                type: 'CHAT_EDIT',
+                id: id,
+                text: newText
+            }));
+
+            // Update local
+            transfer.update(s => ({
+                ...s,
+                messages: s.messages.map(m =>
+                    m.id === id ? { ...m, text: newText, edited: true } : m
+                )
             }));
         }
     }

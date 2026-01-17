@@ -1,8 +1,16 @@
-<script>
     import { transfer, TRANSFER_STATES } from "../stores/transfer";
     import { p2p } from "../services/p2p";
-    import { Send, MessageCircle, X, Minimize2, Maximize2 } from "lucide-svelte";
-    import { afterUpdate, onMount } from "svelte";
+    import { 
+        Send, 
+        MessageCircle, 
+        X, 
+        Minimize2, 
+        Image as ImageIcon,
+        Reply,
+        Edit2,
+        Camera
+    } from "lucide-svelte";
+    import { afterUpdate } from "svelte";
 
     let input = "";
     let chatContainer;
@@ -10,9 +18,14 @@
     let isMinimized = true;
     let hasUnread = false;
 
+    // State for Reply/Edit
+    let replyTo = null; // message object
+    let editingId = null; // id of message being edited
+    let fileInput;
+
     // Auto-scroll to bottom
     afterUpdate(() => {
-        if (chatContainer && isOpen && !isMinimized) {
+        if (chatContainer && isOpen && !isMinimized && !editingId) {
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
     });
@@ -34,15 +47,21 @@
         }
     }
 
-    function closeChat() {
-        isOpen = false;
-        isMinimized = true;
-    }
-
     function sendMessage() {
-        if (!input.trim()) return;
-        p2p.sendChatMessage(input);
-        input = "";
+        if ((!input.trim() && !replyTo) && !editingId) return;
+
+        if (editingId) {
+            p2p.sendChatEdit(editingId, input);
+            editingId = null;
+            input = "";
+        } else {
+            p2p.sendChatMessage({
+                text: input,
+                replyTo: replyTo ? replyTo.id : null
+            });
+            input = "";
+            replyTo = null;
+        }
     }
 
     function handleKeydown(e) {
@@ -50,10 +69,91 @@
             e.preventDefault();
             sendMessage();
         }
+        if (e.key === "Escape") {
+            cancelAction();
+        }
+    }
+
+    function startReply(msg) {
+        replyTo = msg;
+        editingId = null;
+        input = ""; // Clear input or keep it? varied UX. clearing for now.
+        // Focus input
+        const el = document.querySelector('.chat-input');
+        if (el) el.focus();
+    }
+
+    function startEdit(msg) {
+        if (msg.sender !== 'me') return;
+        editingId = msg.id;
+        replyTo = null;
+        input = msg.text;
+         const el = document.querySelector('.chat-input');
+        if (el) el.focus();
+    }
+
+    function cancelAction() {
+        replyTo = null;
+        editingId = null;
+        input = "";
+    }
+
+    // Image Handling
+    async function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Resize/Compress
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                let width = img.width;
+                let height = img.height;
+                const MAX_SIZE = 800; // max width/height
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, width, height);
+
+                const dataUrl = canvas.toDataURL("image/jpeg", 0.7); // 70% quality
+                
+                // Send immediately
+                p2p.sendChatMessage({
+                    text: "",
+                    image: dataUrl,
+                    replyTo: replyTo ? replyTo.id : null
+                });
+                replyTo = null;
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+        
+        // Reset
+        e.target.value = "";
     }
 
     function formatTime(ts) {
         return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getReplyMsg(id) {
+        return $transfer.messages.find(m => m.id === id);
     }
 </script>
 
@@ -83,9 +183,6 @@
                     <button class="icon-btn" on:click={() => isMinimized = true}>
                         <Minimize2 size={16} />
                     </button>
-                    <!-- <button class="icon-btn" on:click={closeChat}>
-                        <X size={16} />
-                    </button> -->
                 </div>
             </div>
 
@@ -93,27 +190,95 @@
                 {#if $transfer.messages.length === 0}
                     <div class="empty-state">
                         <p>No messages yet.</p>
-                        <p class="sub">Say hi!</p>
+                        <p class="sub">Shared images & text will appear here.</p>
                     </div>
                 {/if}
                 {#each $transfer.messages as msg}
                     <div class="msg-row" class:me={msg.sender === 'me'}>
-                        <div class="bubble">
-                            <p>{msg.text}</p>
-                            <span class="time">{formatTime(msg.time)}</span>
+                        <div class="bubble-container">
+                             {#if msg.replyTo}
+                                {@const replied = getReplyMsg(msg.replyTo)}
+                                {#if replied}
+                                    <div class="reply-preview-bubble">
+                                        <div class="reply-bar"></div>
+                                        <span class="reply-sender">{replied.sender === 'me' ? 'You' : 'Peer'}</span>
+                                        <p class="reply-text truncate">{replied.image ? '📷 Image' : replied.text}</p>
+                                    </div>
+                                {/if}
+                            {/if}
+
+                            <div class="bubble group">
+                                {#if msg.image}
+                                    <img src={msg.image} class="chat-image" alt="Shared attachment" />
+                                {/if}
+                                {#if msg.text}
+                                    <p>{msg.text} 
+                                        {#if msg.edited}<span class="edited-tag">(edited)</span>{/if}
+                                        </p>
+                                {/if}
+                                <span class="time">{formatTime(msg.time)}</span>
+
+                                <!-- Hover Actions -->
+                                <div class="msg-actions">
+                                    <button class="action-btn" on:click={() => startReply(msg)} title="Reply">
+                                        <Reply size={12} />
+                                    </button>
+                                    {#if msg.sender === 'me' && msg.text}
+                                        <button class="action-btn" on:click={() => startEdit(msg)} title="Edit">
+                                            <Edit2 size={12} />
+                                        </button>
+                                    {/if}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 {/each}
             </div>
 
+            <!-- Reply/Edit Context -->
+            {#if replyTo || editingId}
+                <div class="context-bar">
+                    <div class="context-content">
+                        {#if replyTo}
+                            <Reply size={14} class="text-primary" />
+                            <div class="context-text">
+                                <span class="label">Replying to {replyTo.sender === 'me' ? 'yourself' : 'peer'}</span>
+                                <p class="truncate">{replyTo.image ? '📷 Image' : replyTo.text}</p>
+                            </div>
+                        {:else if editingId}
+                            <Edit2 size={14} class="text-warning" />
+                            <div class="context-text">
+                                <span class="label">Editing message</span>
+                            </div>
+                        {/if}
+                    </div>
+                    <button class="close-context" on:click={cancelAction}>
+                        <X size={14} />
+                    </button>
+                </div>
+            {/if}
+
             <div class="input-area">
+                <!-- Attachments -->
+                 <button class="icon-btn-sm" on:click={() => fileInput.click()} title="Send Image">
+                    <ImageIcon size={18} />
+                </button>
+                <input 
+                    type="file" 
+                    accept="image/*" 
+                    bind:this={fileInput} 
+                    on:change={handleFileSelect} 
+                    style="display:none" 
+                />
+
                 <input
                     type="text"
+                    class="chat-input"
                     placeholder="Type a message..."
                     bind:value={input}
                     on:keydown={handleKeydown}
                 />
-                <button class="send-btn" on:click={sendMessage} disabled={!input.trim()}>
+                <button class="send-btn" on:click={sendMessage} disabled={!input.trim() && !editingId}>
                     <Send size={18} />
                 </button>
             </div>
@@ -170,8 +335,8 @@
         position: fixed;
         bottom: 2rem;
         right: 2rem;
-        width: 320px;
-        height: 450px;
+        width: 340px;
+        height: 500px;
         z-index: 100;
         display: flex;
         flex-direction: column;
@@ -203,11 +368,6 @@
         margin: 0;
     }
 
-    .header-controls {
-        display: flex;
-        gap: 0.25rem;
-    }
-
     .icon-btn {
         background: transparent;
         color: var(--text-secondary);
@@ -217,8 +377,19 @@
         align-items: center;
         justify-content: center;
     }
+    
+    .icon-btn-sm {
+        background: transparent;
+        color: var(--text-secondary);
+        padding: 0.4rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
 
-    .icon-btn:hover {
+    .icon-btn:hover, .icon-btn-sm:hover {
         background: rgba(255, 255, 255, 0.1);
         color: white;
     }
@@ -229,7 +400,7 @@
         padding: 1rem;
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 1rem;
     }
 
     .empty-state {
@@ -240,6 +411,8 @@
         justify-content: center;
         color: var(--text-secondary);
         opacity: 0.5;
+        text-align: center;
+        padding: 2rem;
     }
 
     .empty-state .sub {
@@ -248,34 +421,52 @@
 
     .msg-row {
         display: flex;
-        margin-bottom: 0.25rem;
+        width: 100%;
     }
 
     .msg-row.me {
         justify-content: flex-end;
     }
 
+    .bubble-container {
+        display: flex;
+        flex-direction: column;
+        max-width: 85%;
+        align-items: flex-start;
+    }
+
+    .me .bubble-container {
+        align-items: flex-end;
+    }
+
     .bubble {
-        max-width: 80%;
         padding: 0.6rem 0.875rem;
         border-radius: 12px;
         font-size: 0.9rem;
         line-height: 1.4;
         position: relative;
         word-wrap: break-word;
+        border-top-left-radius: 2px;
     }
 
     .me .bubble {
         background: var(--primary-color);
         color: white;
-        border-bottom-right-radius: 2px;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 2px;
     }
 
     .msg-row:not(.me) .bubble {
         background: var(--surface-color-2);
         color: var(--text-primary);
         border: 1px solid var(--border-color);
-        border-bottom-left-radius: 2px;
+    }
+    
+    .chat-image {
+        max-width: 100%;
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+        display: block;
     }
 
     .time {
@@ -286,15 +477,125 @@
         text-align: right;
     }
 
+    .edited-tag {
+        font-size: 0.7em;
+        opacity: 0.7;
+        font-style: italic;
+        margin-left: 4px;
+    }
+    
+    /* Hover Actions */
+    .msg-actions {
+        position: absolute;
+        top: -1.5rem;
+        right: 0;
+        background: var(--surface-color);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        padding: 2px 6px;
+        display: none;
+        gap: 4px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .bubble:hover .msg-actions {
+        display: flex;
+    }
+    
+    .action-btn {
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        display: flex;
+    }
+    
+    .action-btn:hover {
+        color: var(--primary-color);
+    }
+
+    /* Reply Preview */
+    .reply-preview-bubble {
+        background: rgba(255,255,255,0.05);
+        border-left: 3px solid var(--primary-color);
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        cursor: pointer;
+        width: 100%;
+    }
+    
+    .reply-sender {
+        font-weight: 600;
+        font-size: 0.75rem;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .context-bar {
+        background: var(--surface-color-2);
+        border-top: 1px solid var(--border-color);
+        padding: 0.5rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .context-content {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        overflow: hidden;
+    }
+    
+    .context-text {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .context-text .label {
+        font-size: 0.75rem;
+        color: var(--primary-color);
+    }
+    
+    .context-text p {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .close-context {
+        background: none;
+        color: var(--text-secondary);
+        padding: 4px;
+    }
+    
+    .close-context:hover {
+        color: white;
+    }
+
+    .truncate {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .input-area {
         padding: 0.75rem;
         border-top: 1px solid var(--border-color);
         display: flex;
         gap: 0.5rem;
         background: rgba(0, 0, 0, 0.2);
+        align-items: center;
     }
 
-    input {
+    input[type="text"] {
         flex: 1;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--border-color);
