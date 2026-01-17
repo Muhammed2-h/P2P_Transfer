@@ -3,6 +3,7 @@
   import { v4 as uuidv4 } from "uuid";
   import { p2p } from "../services/p2p";
   import { transfer, TRANSFER_STATES } from "../stores/transfer";
+  import { settings } from "../stores/settings";
   import ProgressBar from "./ProgressBar.svelte";
   import RefreshTimer from "./RefreshTimer.svelte";
   import {
@@ -290,7 +291,23 @@
                 <span class="status-badge"
                   >Uploading {cloudProgress.toFixed(0)}%...</span
                 >
+              {:else if $settings.useCloudTransfer}
+                <!-- Cloud Mode (Default) -->
+                <button
+                  class="btn-xs"
+                  style="background: #2563eb; border-color: #2563eb;"
+                  title="Use Cloud Relay"
+                  on:click={() => startCloudTransfer(item.id)}
+                >
+                  <CloudUpload size={14} style="margin-right:4px" /> Cloud Send
+                </button>
+                <button
+                  class="btn-xs btn-secondary"
+                  title="Use P2P Direct"
+                  on:click={() => p2p.startFileTransfer(item.id)}>P2P</button
+                >
               {:else}
+                <!-- P2P Mode (Default) -->
                 <button
                   class="btn-xs"
                   on:click={() => p2p.startFileTransfer(item.id)}
@@ -302,7 +319,7 @@
                   title="Use Cloud Relay (Faster)"
                   on:click={() => startCloudTransfer(item.id)}
                 >
-                  <CloudUpload size={14} style="margin-right:4px" /> Cloud
+                  <CloudUpload size={14} />
                 </button>
               {/if}
             {:else}

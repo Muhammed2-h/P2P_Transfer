@@ -124,6 +124,32 @@
             <div class="switch-knob"></div>
           </button>
         </div>
+
+        <!-- Transfer Mode Settings -->
+        <div class="settings-section">
+          <div class="section-info">
+            <div class="icon-wrap">
+              <Zap
+                size={20}
+                class={$settings.useCloudTransfer
+                  ? "text-primary"
+                  : "text-secondary"}
+              />
+            </div>
+            <div class="text-wrap">
+              <h4>Cloud Transfer Mode</h4>
+              <p>Use high-speed cloud relay by default</p>
+            </div>
+          </div>
+          <button
+            class="toggle-switch"
+            class:active={$settings.useCloudTransfer}
+            on:click={settings.toggleCloud}
+            aria-label="Toggle Cloud Transfer"
+          >
+            <div class="switch-knob"></div>
+          </button>
+        </div>
       </div>
     </div>
   </div>

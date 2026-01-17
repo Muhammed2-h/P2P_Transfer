@@ -5,7 +5,8 @@ const STORAGE_KEY = 'warpshare_settings';
 function createSettingsStore() {
     const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
     const initial = saved ? JSON.parse(saved) : {
-        soundsEnabled: true
+        soundsEnabled: true,
+        useCloudTransfer: false // Default to P2P
     };
 
     const { subscribe, update, set } = writable(initial);
@@ -18,7 +19,8 @@ function createSettingsStore() {
 
     return {
         subscribe,
-        toggleSounds: () => update(s => ({ ...s, soundsEnabled: !s.soundsEnabled }))
+        toggleSounds: () => update(s => ({ ...s, soundsEnabled: !s.soundsEnabled })),
+        toggleCloud: () => update(s => ({ ...s, useCloudTransfer: !s.useCloudTransfer }))
     };
 }
 
