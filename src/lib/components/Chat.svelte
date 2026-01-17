@@ -24,6 +24,11 @@
     let editingId = null; // id of message being edited
     let fileInput;
 
+    // Camera State
+    let isCameraOpen = false;
+    let videoEl;
+    let stream;
+
     // Auto-scroll to bottom
     afterUpdate(() => {
         if (chatContainer && isOpen && !isMinimized && !editingId) {
@@ -149,6 +154,51 @@
         e.target.value = "";
     }
 
+    // Camera Functions
+    async function openCamera() {
+        isCameraOpen = true;
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            if (videoEl) {
+                videoEl.srcObject = stream;
+            }
+        } catch (err) {
+            console.error("Camera access denied:", err);
+            isCameraOpen = false;
+            alert("Could not access camera. Please allow permissions.");
+        }
+    }
+
+    function closeCamera() {
+        isCameraOpen = false;
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+    }
+
+    function capturePhoto() {
+        if (!videoEl) return;
+        const canvas = document.createElement("canvas");
+        canvas.width = videoEl.videoWidth;
+        canvas.height = videoEl.videoHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(videoEl, 0, 0);
+        
+        // Convert to quality JPG
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+        
+        // Send
+        p2p.sendChatMessage({
+            text: "",
+            image: dataUrl,
+            replyTo: replyTo ? replyTo.id : null
+        });
+        
+        closeCamera();
+        replyTo = null;
+    }
+
     function formatTime(ts) {
         return new Date(ts).toLocaleTimeString([], {
             hour: "2-digit",
@@ -175,8 +225,27 @@
         </button>
     {/if}
 
+        </button>
+    {/if}
+
+    <!-- Camera Overlay -->
+    {#if isCameraOpen}
+        <div class="camera-overlay fade-in">
+            <video bind:this={videoEl} autoplay playsinline muted></video>
+            <div class="camera-controls">
+                <button class="cam-btn close" on:click={closeCamera}>
+                    <X size={24} />
+                </button>
+                <button class="cam-btn capture" on:click={capturePhoto}>
+                    <div class="inner-circle"></div>
+                </button>
+                <div class="spacer"></div>
+            </div>
+        </div>
+    {/if}
+
     <!-- Chat Window -->
-    {#if !isMinimized}
+    {#if !isMinimized && !isCameraOpen}
         <div class="chat-window glass-panel fade-in">
             <div class="chat-header">
                 <div class="header-info">
@@ -301,9 +370,16 @@
                 <button
                     class="icon-btn-sm"
                     on:click={() => fileInput.click()}
-                    title="Send Image"
+                    title="Send Image from Gallery"
                 >
                     <ImageIcon size={18} />
+                </button>
+                <button
+                    class="icon-btn-sm"
+                    on:click={openCamera}
+                    title="Take Photo"
+                >
+                    <Camera size={18} />
                 </button>
                 <input
                     type="file"
@@ -695,4 +771,72 @@
             right: 1.5rem;
         }
     }
+
+    /* Camera Styles */
+    .camera-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: black;
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .camera-overlay video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .camera-controls {
+        position: absolute;
+        bottom: 2rem;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        padding: 0 2rem;
+    }
+
+    .cam-btn {
+        background: rgba(0,0,0,0.5);
+        border: none;
+        color: white;
+        border-radius: 50%;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+    }
+    
+    .cam-btn.capture {
+        width: 72px;
+        height: 72px;
+        border: 4px solid white;
+        background: transparent;
+        padding: 4px;
+    }
+    
+    .inner-circle {
+        width: 100%;
+        height: 100%;
+        background: white;
+        border-radius: 50%;
+        transition: transform 0.1s;
+    }
+    
+    .cam-btn.capture:active .inner-circle {
+        transform: scale(0.9);
+    }
+
+    .spacer { width: 48px; }
 </style>
