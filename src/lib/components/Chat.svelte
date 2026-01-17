@@ -10,6 +10,8 @@
         Reply,
         Edit2,
         Camera,
+        Plus,
+        Video,
     } from "lucide-svelte";
     import { afterUpdate } from "svelte";
 
@@ -24,10 +26,15 @@
     let editingId = null; // id of message being edited
     let fileInput;
 
-    // Camera State
+    // Camera/Video State
     let isCameraOpen = false;
+    let cameraMode = "photo"; // 'photo' or 'video'
+    let isRecording = false;
+    let mediaRecorder;
+    let recordedChunks = [];
     let videoEl;
     let stream;
+    let showAttachMenu = false;
 
     // Auto-scroll to bottom
     afterUpdate(() => {
@@ -145,6 +152,7 @@
                     replyTo: replyTo ? replyTo.id : null,
                 });
                 replyTo = null;
+                showAttachMenu = false;
             };
             img.src = event.target.result;
         };
@@ -155,17 +163,75 @@
     }
 
     // Camera Functions
-    async function openCamera() {
+    async function openCamera(mode = "photo") {
+        cameraMode = mode;
         isCameraOpen = true;
+        showAttachMenu = false;
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            // Request audio if video mode
+            const constraints = {
+                video: true,
+                audio: mode === "video",
+            };
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
             if (videoEl) {
                 videoEl.srcObject = stream;
+                videoEl.muted = true; // Mute local preview
             }
         } catch (err) {
             console.error("Camera access denied:", err);
             isCameraOpen = false;
-            alert("Could not access camera. Please allow permissions.");
+            alert(
+                "Could not access camera/microphone. Please allow permissions.",
+            );
+        }
+    }
+
+    function startRecording() {
+        if (!stream) return;
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream, {
+            mimeType: "video/webm;codecs=vp8",
+        });
+
+        mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) {
+                recordedChunks.push(e.data);
+            }
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: "video/webm" });
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+                const base64data = reader.result;
+                // Check size!
+                if (base64data.length > 5 * 1024 * 1024) {
+                    alert(
+                        "Video too large to send via Chat. Try sending a shorter clip.",
+                    );
+                    return;
+                }
+
+                p2p.sendChatMessage({
+                    text: "",
+                    video: base64data,
+                    replyTo: replyTo ? replyTo.id : null,
+                });
+            };
+        };
+
+        mediaRecorder.start();
+        isRecording = true;
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            isRecording = false;
+            closeCamera();
+            replyTo = null;
         }
     }
 
@@ -315,6 +381,14 @@
                                         alt="Shared attachment"
                                     />
                                 {/if}
+                                {#if msg.video}
+                                    <!-- svelte-ignore a11y-media-has-caption -->
+                                    <video
+                                        src={msg.video}
+                                        controls
+                                        class="chat-image"
+                                    ></video>
+                                {/if}
                                 {#if msg.text}
                                     <p>
                                         {msg.text}
@@ -379,22 +453,53 @@
                 </div>
             {/if}
 
-            <div class="input-area">
-                <!-- Attachments -->
+            <div class="input-area relative">
+                <!-- Attachments Menu -->
+                {#if showAttachMenu}
+                    <div class="attach-menu glass-panel fade-up">
+                        <button
+                            class="menu-item"
+                            on:click={() => fileInput.click()}
+                        >
+                            <div class="icon-wrap color-1">
+                                <ImageIcon size={20} />
+                            </div>
+                            <span>Gallery</span>
+                        </button>
+                        <button
+                            class="menu-item"
+                            on:click={() => openCamera("photo")}
+                        >
+                            <div class="icon-wrap color-2">
+                                <Camera size={20} />
+                            </div>
+                            <span>Camera</span>
+                        </button>
+                        <button
+                            class="menu-item"
+                            on:click={() => openCamera("video")}
+                        >
+                            <div class="icon-wrap color-3">
+                                <Video size={20} />
+                            </div>
+                            <span>Video</span>
+                        </button>
+                    </div>
+                    <!-- Overlay to close menu -->
+                    <div
+                        class="menu-overlay"
+                        on:click={() => (showAttachMenu = false)}
+                    ></div>
+                {/if}
+
                 <button
                     class="icon-btn-sm"
-                    on:click={() => fileInput.click()}
-                    title="Send Image from Gallery"
+                    on:click={() => (showAttachMenu = !showAttachMenu)}
+                    title="Add Attachment"
                 >
-                    <ImageIcon size={18} />
+                    <Plus size={22} class={showAttachMenu ? "rotate-45" : ""} />
                 </button>
-                <button
-                    class="icon-btn-sm"
-                    on:click={openCamera}
-                    title="Take Photo"
-                >
-                    <Camera size={18} />
-                </button>
+
                 <input
                     type="file"
                     accept="image/*"
