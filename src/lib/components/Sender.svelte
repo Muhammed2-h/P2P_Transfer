@@ -105,8 +105,32 @@
       // You might want to remove it from the P2P queue if it was there
     } catch (err) {
       console.error("Cloud Upload Failed", err);
-      // Fallback or alert
-      alert("Cloud upload failed. Try P2P.");
+
+      // Auto-Fallback to P2P
+      // Ideally we need the itemId here to start P2P.
+      // We can find it by file object reference or pass it to this function.
+      // Let's modify the function to accept itemId as well.
+      // But since we can't easily change signature without changing caller...
+      // wait, the caller 'startCloudTransfer' has the itemId.
+      // Refactoring to handle fallback in the catch block by finding the item associated with this file.
+
+      const item = $transfer.fileQueue.find((i) => i.file === file);
+      if (item) {
+        // Reset status from 'completed-cloud' (if it was set early) back to 'queued' or 'transferring'
+        p2p.updateQueueStatus(item.id, "queued");
+
+        // Notify user
+        p2p.sendChatMessage({
+          text: `⚠️ Cloud upload failed. Switching to P2P for ${file.name}...`,
+        });
+
+        // Start P2P
+        setTimeout(() => {
+          p2p.startFileTransfer(item.id);
+        }, 500);
+      } else {
+        alert("Cloud upload failed and could not find file for P2P fallback.");
+      }
     } finally {
       isCloudUploading = false;
     }
