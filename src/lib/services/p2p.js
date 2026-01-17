@@ -40,6 +40,11 @@ class P2PService {
         this.isPaused = false;
         this.lastUiUpdate = 0;
         this.transferredBytes = 0; // Local counter for speed
+
+        // Batch Writing Optimization
+        this.receiveBuffer = [];
+        this.receiveBufferSize = 0;
+        this.writeThreshold = 32 * 1024 * 1024; // 32MB Write Batch
     }
 
     // --- Signaling ---
@@ -464,6 +469,11 @@ class P2PService {
     async acceptFile() {
         const s = get(transfer);
         this.transferredBytes = 0; // Reset for receiver
+
+        // Reset Buffer
+        this.receiveBuffer = [];
+        this.receiveBufferSize = 0;
+
         await this.initFileSystem(s.fileName, s.totalSize);
 
         // Check if initFileSystem succeeded (state might be ERROR if cancelled)
@@ -492,10 +502,54 @@ class P2PService {
     }
 
     async handleChunk(buffer) {
+        if (!this.fileWriter) return;
+
+        // Push to memory buffer
+        this.receiveBuffer.push(buffer);
+        this.receiveBufferSize += buffer.byteLength;
+        this.transferredBytes += buffer.byteLength;
+
+        // Update UI (Throttled inside the method)
+        this.updateProgress(this.transferredBytes);
+
+        // Flush to disk if threshold reached
+        if (this.receiveBufferSize >= this.writeThreshold) {
+            await this.flushBuffer();
+        }
+    }
+
+    async flushBuffer() {
+        if (!this.fileWriter || this.receiveBufferSize === 0) return;
+
+        const blob = new Blob(this.receiveBuffer);
+        await this.fileWriter.write(blob);
+
+        // Clear buffer
+        this.receiveBuffer = [];
+        this.receiveBufferSize = 0;
+    }
+
+    async finalizeFile() {
         if (this.fileWriter) {
-            await this.fileWriter.write(buffer);
-            this.transferredBytes += buffer.byteLength;
-            this.updateProgress(this.transferredBytes);
+            // Write remaining data
+            await this.flushBuffer();
+            await this.fileWriter.close();
+            this.fileWriter = null;
+
+            // Notify completion
+            const s = get(transfer);
+            if (s.currentFileId) {
+                this.sendTransferSuccess(s.currentFileId);
+                this.updateQueueStatus(s.currentFileId, 'completed');
+                this.recordHistory(s.currentFileId, 'receiver');
+
+                transfer.update(st => ({
+                    ...st,
+                    state: TRANSFER_STATES.COMPLETED,
+                    progress: 100,
+                    timeLeft: 0
+                }));
+            }
         }
     }
 
@@ -627,6 +681,10 @@ class P2PService {
             await this.fileWriter.close().catch(e => console.error(e));
             this.fileWriter = null;
         }
+
+        // Clear buffer on stop
+        this.receiveBuffer = [];
+        this.receiveBufferSize = 0;
 
         // Reset the file status in the queue if it was transferring
         if (fileId) {
