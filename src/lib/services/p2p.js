@@ -15,9 +15,10 @@ import { playSound } from '../utils/sounds';
 import { settings } from '../stores/settings';
 
 // Configurations
-const CHUNK_SIZE = 128 * 1024; // 128KB
-const BUFFER_THRESHOLD = 8 * 1024 * 1024; // 8MB buffer to keep the pipe full
-const UI_UPDATE_INTERVAL = 150; // ms (Throttle progress updates for performance)
+// Configurations
+const CHUNK_SIZE = 256 * 1024; // 256KB (Max safe size for Chrome)
+const BUFFER_THRESHOLD = 16 * 1024 * 1024; // 16MB buffer to keep the pipe absolutely full
+const UI_UPDATE_INTERVAL = 100; // ms (Update UI slightly more often for smoother feel)
 const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000'; // Dynamic URL for production
 
 const ICE_SERVERS = {
