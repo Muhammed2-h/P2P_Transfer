@@ -853,6 +853,7 @@
     }
 
     .input-area {
+        position: relative;
         padding: 0.75rem;
         border-top: 1px solid var(--border-color);
         display: flex;
