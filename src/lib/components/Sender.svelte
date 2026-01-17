@@ -18,6 +18,8 @@
   import QRCode from "qrcode";
 
   import TextSync from "./TextSync.svelte";
+  import { cloudRelay } from "../services/cloud-relay";
+  import { CloudUpload } from "lucide-svelte";
 
   let sessionId = "";
   let qrCodeUrl = "";
@@ -76,6 +78,50 @@
   function acceptFile() {
     // Sender accepts the *current* pending file from Receiver
     p2p.acceptFile();
+  }
+
+  // Cloud Transfer Logic
+  let isCloudUploading = false;
+  let cloudProgress = 0;
+
+  async function uploadViaCloud(file) {
+    if (!file) return;
+    isCloudUploading = true;
+    cloudProgress = 0;
+
+    try {
+      const result = await cloudRelay.upload(file, (progress) => {
+        cloudProgress = progress;
+      });
+
+      // Send link via chat
+      p2p.sendChatMessage({
+        text: `🚀 **Fast Cloud Transfer**\nDownload ${file.name} here (expires in 14 days):\n${result.link}`,
+      });
+
+      // Also add to history as completed
+      const id = uuidv4();
+      // Just a dummy entry to show it was handled
+      // You might want to remove it from the P2P queue if it was there
+    } catch (err) {
+      console.error("Cloud Upload Failed", err);
+      // Fallback or alert
+      alert("Cloud upload failed. Try P2P.");
+    } finally {
+      isCloudUploading = false;
+    }
+  }
+
+  function startCloudTransfer(itemId) {
+    const item = $transfer.fileQueue.find((i) => i.id === itemId);
+    if (item && item.file) {
+      // Mark as transferring visually (optional)
+      uploadViaCloud(item.file);
+      // Remove from P2P Queue to avoid confusion?
+      // Or just let user decide.
+      // Let's remove from P2P queue to show it's handled
+      p2p.updateQueueStatus(itemId, "completed-cloud");
+    }
   }
 
   function closeModal() {
@@ -215,13 +261,29 @@
             >
           </div>
           <div class="file-actions">
-            <span class={`status-badge status-${item.status}`}
-              >{item.status}</span
-            >
-            {#if item.status === "queued"}
-              <button
-                class="btn-xs"
-                on:click={() => p2p.startFileTransfer(item.id)}>Send</button
+            {#if item.status === "queued" || item.status === "completed-cloud"}
+              {#if isCloudUploading}
+                <span class="status-badge"
+                  >Uploading {cloudProgress.toFixed(0)}%...</span
+                >
+              {:else}
+                <button
+                  class="btn-xs"
+                  on:click={() => p2p.startFileTransfer(item.id)}
+                  >P2P Send</button
+                >
+                <button
+                  class="btn-xs btn-secondary"
+                  style="background: #2563eb; border-color: #2563eb;"
+                  title="Use Cloud Relay (Faster)"
+                  on:click={() => startCloudTransfer(item.id)}
+                >
+                  <CloudUpload size={14} style="margin-right:4px" /> Cloud
+                </button>
+              {/if}
+            {:else}
+              <span class={`status-badge status-${item.status}`}
+                >{item.status}</span
               >
             {/if}
           </div>
