@@ -209,6 +209,15 @@
     function getReplyMsg(id) {
         return $transfer.messages.find((m) => m.id === id);
     }
+
+    function scrollToMsg(id) {
+        const el = document.getElementById(`msg-${id}`);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            el.classList.add("flash-highlight");
+            setTimeout(() => el.classList.remove("flash-highlight"), 2000);
+        }
+    }
 </script>
 
 {#if $transfer.state === TRANSFER_STATES.CONNECTED || $transfer.state === TRANSFER_STATES.TRANSFERRING || $transfer.state === TRANSFER_STATES.WAITING_ACCEPTANCE || $transfer.state === TRANSFER_STATES.PAUSED || $transfer.state === TRANSFER_STATES.COMPLETED}
@@ -269,12 +278,20 @@
                     </div>
                 {/if}
                 {#each $transfer.messages as msg}
-                    <div class="msg-row" class:me={msg.sender === "me"}>
+                    <div
+                        id="msg-{msg.id}"
+                        class="msg-row"
+                        class:me={msg.sender === "me"}
+                    >
                         <div class="bubble-container">
                             {#if msg.replyTo}
                                 {@const replied = getReplyMsg(msg.replyTo)}
                                 {#if replied}
-                                    <div class="reply-preview-bubble">
+                                    <div
+                                        class="reply-preview-bubble clickable"
+                                        on:click={() =>
+                                            scrollToMsg(msg.replyTo)}
+                                    >
                                         <div class="reply-bar"></div>
                                         <span class="reply-sender"
                                             >{replied.sender === "me"
@@ -698,6 +715,30 @@
 
     .close-context:hover {
         color: white;
+    }
+
+    .clickable {
+        cursor: pointer;
+        opacity: 0.8;
+    }
+
+    .clickable:hover {
+        opacity: 1;
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .flash-highlight .bubble {
+        animation: highlight 2s ease;
+    }
+
+    @keyframes highlight {
+        0%,
+        100% {
+            box-shadow: 0 0 0 0 transparent;
+        }
+        20% {
+            box-shadow: 0 0 0 4px var(--primary-color);
+        }
     }
 
     .truncate {
