@@ -172,7 +172,7 @@
     function closeCamera() {
         isCameraOpen = false;
         if (stream) {
-            stream.getTracks().forEach(track => track.stop());
+            stream.getTracks().forEach((track) => track.stop());
             stream = null;
         }
     }
@@ -184,17 +184,17 @@
         canvas.height = videoEl.videoHeight;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(videoEl, 0, 0);
-        
+
         // Convert to quality JPG
         const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-        
+
         // Send
         p2p.sendChatMessage({
             text: "",
             image: dataUrl,
-            replyTo: replyTo ? replyTo.id : null
+            replyTo: replyTo ? replyTo.id : null,
         });
-        
+
         closeCamera();
         replyTo = null;
     }
@@ -222,9 +222,6 @@
                 {/if}
             </div>
             <span class="label">Chat</span>
-        </button>
-    {/if}
-
         </button>
     {/if}
 
@@ -805,7 +802,7 @@
     }
 
     .cam-btn {
-        background: rgba(0,0,0,0.5);
+        background: rgba(0, 0, 0, 0.5);
         border: none;
         color: white;
         border-radius: 50%;
@@ -817,7 +814,7 @@
         cursor: pointer;
         backdrop-filter: blur(4px);
     }
-    
+
     .cam-btn.capture {
         width: 72px;
         height: 72px;
@@ -825,7 +822,7 @@
         background: transparent;
         padding: 4px;
     }
-    
+
     .inner-circle {
         width: 100%;
         height: 100%;
@@ -833,10 +830,12 @@
         border-radius: 50%;
         transition: transform 0.1s;
     }
-    
+
     .cam-btn.capture:active .inner-circle {
         transform: scale(0.9);
     }
 
-    .spacer { width: 48px; }
+    .spacer {
+        width: 48px;
+    }
 </style>
