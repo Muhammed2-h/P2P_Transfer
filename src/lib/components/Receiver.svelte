@@ -262,7 +262,11 @@
     {#if state === TRANSFER_STATES.TRANSFERRING || state === TRANSFER_STATES.PAUSED || state === TRANSFER_STATES.COMPLETED}
         <div class="transfer-status">
             <div class="status-header">
-                <h3>Receiving: {$transfer.fileName}</h3>
+                <h3>
+                    {state === TRANSFER_STATES.COMPLETED
+                        ? "Received"
+                        : "Receiving"}: {$transfer.fileName}
+                </h3>
                 {#if state !== TRANSFER_STATES.COMPLETED}
                     <div class="transfer-controls">
                         <button

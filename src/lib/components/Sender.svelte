@@ -278,30 +278,35 @@
     </div>
   {/if}
 
-  {#if isTransferring}
+  {#if state === TRANSFER_STATES.TRANSFERRING || state === TRANSFER_STATES.PAUSED || state === TRANSFER_STATES.COMPLETED}
     <div class="transfer-status">
       <div class="status-header">
-        <h3>Sending: {$transfer.fileName}</h3>
-        <div class="transfer-controls">
-          <button
-            class="btn-icon"
-            on:click={() => p2p.togglePause()}
-            title={state === TRANSFER_STATES.PAUSED ? "Resume" : "Pause"}
-          >
-            {#if state === TRANSFER_STATES.PAUSED}
-              <Play size={24} color="var(--success)" />
-            {:else}
-              <Pause size={24} color="var(--warning)" />
-            {/if}
-          </button>
-          <button
-            class="btn-icon-danger"
-            on:click={cancel}
-            title="Cancel Transfer"
-          >
-            <XCircle size={24} color="var(--error)" />
-          </button>
-        </div>
+        <h3>
+          {state === TRANSFER_STATES.COMPLETED ? "Sent" : "Sending"}: {$transfer.fileName}
+        </h3>
+
+        {#if state !== TRANSFER_STATES.COMPLETED}
+          <div class="transfer-controls">
+            <button
+              class="btn-icon"
+              on:click={() => p2p.togglePause()}
+              title={state === TRANSFER_STATES.PAUSED ? "Resume" : "Pause"}
+            >
+              {#if state === TRANSFER_STATES.PAUSED}
+                <Play size={24} color="var(--success)" />
+              {:else}
+                <Pause size={24} color="var(--warning)" />
+              {/if}
+            </button>
+            <button
+              class="btn-icon-danger"
+              on:click={cancel}
+              title="Cancel Transfer"
+            >
+              <XCircle size={24} color="var(--error)" />
+            </button>
+          </div>
+        {/if}
       </div>
       <ProgressBar
         progress={$transfer.progress}
