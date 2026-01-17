@@ -462,7 +462,7 @@
                             on:click={() => fileInput.click()}
                         >
                             <div class="icon-wrap color-1">
-                                <ImageIcon size={20} />
+                                <ImageIcon size={18} />
                             </div>
                             <span>Gallery</span>
                         </button>
@@ -471,7 +471,7 @@
                             on:click={() => openCamera("photo")}
                         >
                             <div class="icon-wrap color-2">
-                                <Camera size={20} />
+                                <Camera size={18} />
                             </div>
                             <span>Camera</span>
                         </button>
@@ -480,7 +480,7 @@
                             on:click={() => openCamera("video")}
                         >
                             <div class="icon-wrap color-3">
-                                <Video size={20} />
+                                <Video size={18} />
                             </div>
                             <span>Video</span>
                         </button>
@@ -921,30 +921,30 @@
         position: absolute;
         bottom: 100%;
         left: 0.5rem;
-        margin-bottom: 0.75rem;
-        background: #1a1a20; /* Solid dark color just in case */
-        border-radius: 16px;
-        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background: #1a1a20;
+        border-radius: 12px;
+        padding: 0.35rem;
         display: flex;
-        flex-direction: column !important; /* Force column */
+        flex-direction: column !important;
         gap: 0.25rem;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.1);
         z-index: 1000;
-        min-width: 160px;
+        min-width: 130px;
     }
 
     button.menu-item {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
+        gap: 0.6rem;
+        padding: 0.5rem 0.75rem;
         background-color: transparent !important;
         background: transparent !important;
         border: none !important;
         color: white !important;
         cursor: pointer;
-        border-radius: 12px;
+        border-radius: 8px;
         text-align: left;
         width: 100%;
         box-shadow: none !important;
@@ -957,14 +957,15 @@
     }
 
     .menu-item span {
+        font-size: 0.85rem;
         font-weight: 500;
         letter-spacing: 0.02em;
     }
 
     .icon-wrap {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
