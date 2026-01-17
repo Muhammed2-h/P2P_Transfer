@@ -916,6 +916,79 @@
     }
 
     /* Camera Styles */
+    .attach-menu {
+        position: absolute;
+        bottom: 100%;
+        left: 0.5rem;
+        margin-bottom: 0.75rem;
+        background: rgba(30, 30, 35, 0.95);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 101;
+        min-width: 160px;
+        transform-origin: bottom left;
+    }
+
+    .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem 1rem;
+        background: transparent !important; /* Force override */
+        border: none !important;
+        color: rgba(255, 255, 255, 0.9);
+        cursor: pointer;
+        border-radius: 12px;
+        transition: all 0.2s;
+        text-align: left;
+        width: 100%;
+        font-family: inherit;
+        font-size: 0.95rem;
+    }
+
+    .menu-item:hover {
+        background: rgba(255, 255, 255, 0.08) !important;
+        transform: translateX(2px);
+    }
+
+    .menu-item span {
+        font-weight: 500;
+        letter-spacing: 0.02em;
+    }
+
+    .icon-wrap {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s;
+    }
+
+    .menu-item:hover .icon-wrap {
+        transform: scale(1.1);
+    }
+
+    .color-1 {
+        background: rgba(59, 130, 246, 0.15);
+        color: #60a5fa;
+    }
+    .color-2 {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+    }
+    .color-3 {
+        background: rgba(244, 63, 94, 0.15);
+        color: #fb7185;
+    }
     .camera-overlay {
         position: fixed;
         top: 0;
