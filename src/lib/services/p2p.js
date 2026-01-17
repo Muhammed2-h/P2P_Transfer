@@ -1,12 +1,4 @@
-const generateUUID = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-        return crypto.randomUUID();
-    }
-    return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, c =>
-        (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-    );
-};
-
+import { v4 as generateUUID } from 'uuid';
 import { io } from 'socket.io-client';
 import { transfer, TRANSFER_STATES } from '../stores/transfer';
 import { get } from 'svelte/store';
@@ -14,7 +6,6 @@ import { history } from '../stores/history';
 import { playSound } from '../utils/sounds';
 import { settings } from '../stores/settings';
 
-// Configurations
 // Configurations
 const CHUNK_SIZE = 256 * 1024; // 256KB (Max safe size for Chrome)
 const BUFFER_THRESHOLD = 16 * 1024 * 1024; // 16MB buffer to keep the pipe absolutely full
