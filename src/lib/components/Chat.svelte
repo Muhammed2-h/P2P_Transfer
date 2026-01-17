@@ -1,14 +1,15 @@
+<script>
     import { transfer, TRANSFER_STATES } from "../stores/transfer";
     import { p2p } from "../services/p2p";
-    import { 
-        Send, 
-        MessageCircle, 
-        X, 
-        Minimize2, 
+    import {
+        Send,
+        MessageCircle,
+        X,
+        Minimize2,
         Image as ImageIcon,
         Reply,
         Edit2,
-        Camera
+        Camera,
     } from "lucide-svelte";
     import { afterUpdate } from "svelte";
 
@@ -32,7 +33,7 @@
 
     $: if ($transfer.messages.length > 0) {
         const lastMsg = $transfer.messages[$transfer.messages.length - 1];
-        if (lastMsg.sender === 'peer' && (isMinimized || !isOpen)) {
+        if (lastMsg.sender === "peer" && (isMinimized || !isOpen)) {
             hasUnread = true;
         }
     }
@@ -48,7 +49,7 @@
     }
 
     function sendMessage() {
-        if ((!input.trim() && !replyTo) && !editingId) return;
+        if (!input.trim() && !replyTo && !editingId) return;
 
         if (editingId) {
             p2p.sendChatEdit(editingId, input);
@@ -57,7 +58,7 @@
         } else {
             p2p.sendChatMessage({
                 text: input,
-                replyTo: replyTo ? replyTo.id : null
+                replyTo: replyTo ? replyTo.id : null,
             });
             input = "";
             replyTo = null;
@@ -79,16 +80,16 @@
         editingId = null;
         input = ""; // Clear input or keep it? varied UX. clearing for now.
         // Focus input
-        const el = document.querySelector('.chat-input');
+        const el = document.querySelector(".chat-input");
         if (el) el.focus();
     }
 
     function startEdit(msg) {
-        if (msg.sender !== 'me') return;
+        if (msg.sender !== "me") return;
         editingId = msg.id;
         replyTo = null;
         input = msg.text;
-         const el = document.querySelector('.chat-input');
+        const el = document.querySelector(".chat-input");
         if (el) el.focus();
     }
 
@@ -131,29 +132,32 @@
                 ctx.drawImage(img, 0, 0, width, height);
 
                 const dataUrl = canvas.toDataURL("image/jpeg", 0.7); // 70% quality
-                
+
                 // Send immediately
                 p2p.sendChatMessage({
                     text: "",
                     image: dataUrl,
-                    replyTo: replyTo ? replyTo.id : null
+                    replyTo: replyTo ? replyTo.id : null,
                 });
                 replyTo = null;
             };
             img.src = event.target.result;
         };
         reader.readAsDataURL(file);
-        
+
         // Reset
         e.target.value = "";
     }
 
     function formatTime(ts) {
-        return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return new Date(ts).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
     }
 
     function getReplyMsg(id) {
-        return $transfer.messages.find(m => m.id === id);
+        return $transfer.messages.find((m) => m.id === id);
     }
 </script>
 
@@ -162,7 +166,7 @@
     {#if isMinimized}
         <button class="chat-fab glass-panel fade-in" on:click={toggleChat}>
             <div class="icon-badge">
-                <MessageCircle size={24} color="white"/>
+                <MessageCircle size={24} color="white" />
                 {#if hasUnread}
                     <div class="unread-dot"></div>
                 {/if}
@@ -180,7 +184,10 @@
                     <h3>Chat</h3>
                 </div>
                 <div class="header-controls">
-                    <button class="icon-btn" on:click={() => isMinimized = true}>
+                    <button
+                        class="icon-btn"
+                        on:click={() => (isMinimized = true)}
+                    >
                         <Minimize2 size={16} />
                     </button>
                 </div>
@@ -190,41 +197,66 @@
                 {#if $transfer.messages.length === 0}
                     <div class="empty-state">
                         <p>No messages yet.</p>
-                        <p class="sub">Shared images & text will appear here.</p>
+                        <p class="sub">
+                            Shared images & text will appear here.
+                        </p>
                     </div>
                 {/if}
                 {#each $transfer.messages as msg}
-                    <div class="msg-row" class:me={msg.sender === 'me'}>
+                    <div class="msg-row" class:me={msg.sender === "me"}>
                         <div class="bubble-container">
-                             {#if msg.replyTo}
+                            {#if msg.replyTo}
                                 {@const replied = getReplyMsg(msg.replyTo)}
                                 {#if replied}
                                     <div class="reply-preview-bubble">
                                         <div class="reply-bar"></div>
-                                        <span class="reply-sender">{replied.sender === 'me' ? 'You' : 'Peer'}</span>
-                                        <p class="reply-text truncate">{replied.image ? '📷 Image' : replied.text}</p>
+                                        <span class="reply-sender"
+                                            >{replied.sender === "me"
+                                                ? "You"
+                                                : "Peer"}</span
+                                        >
+                                        <p class="reply-text truncate">
+                                            {replied.image
+                                                ? "📷 Image"
+                                                : replied.text}
+                                        </p>
                                     </div>
                                 {/if}
                             {/if}
 
                             <div class="bubble group">
                                 {#if msg.image}
-                                    <img src={msg.image} class="chat-image" alt="Shared attachment" />
+                                    <img
+                                        src={msg.image}
+                                        class="chat-image"
+                                        alt="Shared attachment"
+                                    />
                                 {/if}
                                 {#if msg.text}
-                                    <p>{msg.text} 
-                                        {#if msg.edited}<span class="edited-tag">(edited)</span>{/if}
-                                        </p>
+                                    <p>
+                                        {msg.text}
+                                        {#if msg.edited}<span class="edited-tag"
+                                                >(edited)</span
+                                            >{/if}
+                                    </p>
                                 {/if}
                                 <span class="time">{formatTime(msg.time)}</span>
 
                                 <!-- Hover Actions -->
                                 <div class="msg-actions">
-                                    <button class="action-btn" on:click={() => startReply(msg)} title="Reply">
+                                    <button
+                                        class="action-btn"
+                                        on:click={() => startReply(msg)}
+                                        title="Reply"
+                                    >
                                         <Reply size={12} />
                                     </button>
-                                    {#if msg.sender === 'me' && msg.text}
-                                        <button class="action-btn" on:click={() => startEdit(msg)} title="Edit">
+                                    {#if msg.sender === "me" && msg.text}
+                                        <button
+                                            class="action-btn"
+                                            on:click={() => startEdit(msg)}
+                                            title="Edit"
+                                        >
                                             <Edit2 size={12} />
                                         </button>
                                     {/if}
@@ -242,8 +274,14 @@
                         {#if replyTo}
                             <Reply size={14} class="text-primary" />
                             <div class="context-text">
-                                <span class="label">Replying to {replyTo.sender === 'me' ? 'yourself' : 'peer'}</span>
-                                <p class="truncate">{replyTo.image ? '📷 Image' : replyTo.text}</p>
+                                <span class="label"
+                                    >Replying to {replyTo.sender === "me"
+                                        ? "yourself"
+                                        : "peer"}</span
+                                >
+                                <p class="truncate">
+                                    {replyTo.image ? "📷 Image" : replyTo.text}
+                                </p>
                             </div>
                         {:else if editingId}
                             <Edit2 size={14} class="text-warning" />
@@ -260,15 +298,19 @@
 
             <div class="input-area">
                 <!-- Attachments -->
-                 <button class="icon-btn-sm" on:click={() => fileInput.click()} title="Send Image">
+                <button
+                    class="icon-btn-sm"
+                    on:click={() => fileInput.click()}
+                    title="Send Image"
+                >
                     <ImageIcon size={18} />
                 </button>
-                <input 
-                    type="file" 
-                    accept="image/*" 
-                    bind:this={fileInput} 
-                    on:change={handleFileSelect} 
-                    style="display:none" 
+                <input
+                    type="file"
+                    accept="image/*"
+                    bind:this={fileInput}
+                    on:change={handleFileSelect}
+                    style="display:none"
                 />
 
                 <input
@@ -278,7 +320,11 @@
                     bind:value={input}
                     on:keydown={handleKeydown}
                 />
-                <button class="send-btn" on:click={sendMessage} disabled={!input.trim() && !editingId}>
+                <button
+                    class="send-btn"
+                    on:click={sendMessage}
+                    disabled={!input.trim() && !editingId}
+                >
                     <Send size={18} />
                 </button>
             </div>
@@ -377,7 +423,7 @@
         align-items: center;
         justify-content: center;
     }
-    
+
     .icon-btn-sm {
         background: transparent;
         color: var(--text-secondary);
@@ -389,7 +435,8 @@
         cursor: pointer;
     }
 
-    .icon-btn:hover, .icon-btn-sm:hover {
+    .icon-btn:hover,
+    .icon-btn-sm:hover {
         background: rgba(255, 255, 255, 0.1);
         color: white;
     }
@@ -461,7 +508,7 @@
         color: var(--text-primary);
         border: 1px solid var(--border-color);
     }
-    
+
     .chat-image {
         max-width: 100%;
         border-radius: 8px;
@@ -483,7 +530,7 @@
         font-style: italic;
         margin-left: 4px;
     }
-    
+
     /* Hover Actions */
     .msg-actions {
         position: absolute;
@@ -495,13 +542,13 @@
         padding: 2px 6px;
         display: none;
         gap: 4px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
-    
+
     .bubble:hover .msg-actions {
         display: flex;
     }
-    
+
     .action-btn {
         background: none;
         border: none;
@@ -510,14 +557,14 @@
         color: var(--text-secondary);
         display: flex;
     }
-    
+
     .action-btn:hover {
         color: var(--primary-color);
     }
 
     /* Reply Preview */
     .reply-preview-bubble {
-        background: rgba(255,255,255,0.05);
+        background: rgba(255, 255, 255, 0.05);
         border-left: 3px solid var(--primary-color);
         padding: 4px 8px;
         border-radius: 4px;
@@ -527,7 +574,7 @@
         cursor: pointer;
         width: 100%;
     }
-    
+
     .reply-sender {
         font-weight: 600;
         font-size: 0.75rem;
@@ -543,25 +590,25 @@
         justify-content: space-between;
         align-items: center;
     }
-    
+
     .context-content {
         display: flex;
         gap: 0.5rem;
         align-items: center;
         overflow: hidden;
     }
-    
+
     .context-text {
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
-    
+
     .context-text .label {
         font-size: 0.75rem;
         color: var(--primary-color);
     }
-    
+
     .context-text p {
         font-size: 0.85rem;
         color: var(--text-secondary);
@@ -569,13 +616,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    
+
     .close-context {
         background: none;
         color: var(--text-secondary);
         padding: 4px;
     }
-    
+
     .close-context:hover {
         color: white;
     }
