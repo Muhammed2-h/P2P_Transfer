@@ -5,6 +5,7 @@ import { get } from 'svelte/store';
 import { history } from '../stores/history';
 import { playSound } from '../utils/sounds';
 import { settings } from '../stores/settings';
+import { sdpUtils } from '../utils/sdp';
 
 // Configurations
 const CHUNK_SIZE = 16 * 1024; // 16KB (MTU-safe)
@@ -124,6 +125,62 @@ class P2PService {
         if (this.socket) {
             this.socket.emit('kick-peer', { roomId: get(transfer).sessionId });
         }
+    }
+
+    // --- Manual Signaling (Truly Offline) ---
+
+    async createManualOffer() {
+        this.createPeerConnection();
+        this.dataChannel = this.peerConnection.createDataChannel('file-transfer', { ordered: true });
+        this.setupDataChannel(this.dataChannel);
+
+        const offer = await this.peerConnection.createOffer();
+        await this.peerConnection.setLocalDescription(offer);
+
+        // Wait for ICE gathering to complete so we have all candidates in the SDP
+        await new Promise(resolve => {
+            if (this.peerConnection.iceGatheringState === 'complete') {
+                resolve();
+            } else {
+                this.peerConnection.onicegatheringstatechange = () => {
+                    if (this.peerConnection.iceGatheringState === 'complete') resolve();
+                };
+            }
+        });
+
+        return sdpUtils.minify(this.peerConnection.localDescription.sdp);
+    }
+
+    async acceptManualOffer(minifiedOffer) {
+        this.createPeerConnection();
+        this.peerConnection.ondatachannel = (event) => {
+            this.dataChannel = event.channel;
+            this.setupDataChannel(this.dataChannel);
+        };
+
+        const sdp = sdpUtils.expand(minifiedOffer);
+        await this.peerConnection.setRemoteDescription({ type: 'offer', sdp });
+
+        const answer = await this.peerConnection.createAnswer();
+        await this.peerConnection.setLocalDescription(answer);
+
+        // Wait for ICE gathering
+        await new Promise(resolve => {
+            if (this.peerConnection.iceGatheringState === 'complete') {
+                resolve();
+            } else {
+                this.peerConnection.onicegatheringstatechange = () => {
+                    if (this.peerConnection.iceGatheringState === 'complete') resolve();
+                };
+            }
+        });
+
+        return sdpUtils.minify(this.peerConnection.localDescription.sdp);
+    }
+
+    async finalizeManualHandshake(minifiedAnswer) {
+        const sdp = sdpUtils.expand(minifiedAnswer);
+        await this.peerConnection.setRemoteDescription({ type: 'answer', sdp });
     }
 
     // --- WebRTC Setup ---

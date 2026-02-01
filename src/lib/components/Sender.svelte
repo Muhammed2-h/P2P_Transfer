@@ -25,6 +25,7 @@
   import { CloudUpload } from "lucide-svelte";
   import { cryptoUtils } from "../utils/crypto";
   import JSZip from "jszip";
+  import QRScanner from "./QRScanner.svelte";
 
   let sessionId = "";
   let qrCodeUrl = "";
@@ -58,6 +59,53 @@
   let connectionRequest = false;
   let nearbyPeers = [];
   let unsubscribeDiscovery;
+
+  // Air-Gap (Truly Offline) Mode
+  let isAirGap = false;
+  let airGapStep = 1; // 1: Show Offer, 2: Scan Answer
+  let manualOfferQr = "";
+  let isGeneratingOffer = false;
+
+  async function startAirGap() {
+    isAirGap = true;
+    isGeneratingOffer = true;
+    manualOfferQr = "";
+    try {
+      const minified = await p2p.createManualOffer();
+      // Generate QR with high error correction (L) to fit more data
+      manualOfferQr = await QRCode.toDataURL(minified, {
+        margin: 2,
+        scale: 4,
+        errorCorrectionLevel: "L",
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to generate offline offer.");
+      isAirGap = false;
+    } finally {
+      isGeneratingOffer = false;
+    }
+  }
+
+  function cancelAirGap() {
+    isAirGap = false;
+    airGapStep = 1;
+    p2p.cleanup();
+    initSession();
+  }
+
+  async function handleScanAnswer(e) {
+    const minifiedAnswer = e.detail;
+    try {
+      await p2p.finalizeManualHandshake(minifiedAnswer);
+      isAirGap = false;
+      airGapStep = 1;
+      // The p2p.js setupDataChannel will trigger TRANSFER_STATES.CONNECTED onopen
+    } catch (err) {
+      console.error(err);
+      alert("Invalid QR code or connection failed. Try again.");
+    }
+  }
 
   import { Monitor, Wifi } from "lucide-svelte";
   import { onDestroy } from "svelte";
@@ -408,10 +456,60 @@
       {#if !isConnected}
         <div class="refresh-wrapper">
           <RefreshTimer onRefresh={initSession} />
+          <button class="btn-xs airgap-btn" on:click={startAirGap}>
+            <Wifi size={14} /> Offline Handshake
+          </button>
         </div>
       {/if}
     </div>
   </div>
+
+  {#if isAirGap}
+    <div class="airgap-overlay fade-in">
+      <div class="airgap-modal glass-panel">
+        <div class="modal-header">
+          <h3>Offline Handshake</h3>
+          <button class="btn-icon" on:click={cancelAirGap}
+            ><X size={20} /></button
+          >
+        </div>
+
+        <div class="airgap-content">
+          {#if airGapStep === 1}
+            <div class="step-box">
+              <span class="step-num">Step 1</span>
+              <p>
+                Ask the receiver to click <strong>"Scan Handshake"</strong> and scan
+                this code:
+              </p>
+              <div class="qr-display">
+                {#if isGeneratingOffer}
+                  <div class="loader">Generating Offer...</div>
+                {:else if manualOfferQr}
+                  <img src={manualOfferQr} alt="Handshake Offer" />
+                {/if}
+              </div>
+              <button class="btn-primary" on:click={() => (airGapStep = 2)}
+                >Next: Scan Answer</button
+              >
+            </div>
+          {:else}
+            <div class="step-box">
+              <span class="step-num">Step 2</span>
+              <p>
+                Now, scan the QR code shown on the <strong>Receiver's</strong> screen:
+              </p>
+              <QRScanner
+                title="Scan Peer Answer"
+                on:scan={handleScanAnswer}
+                on:close={() => (airGapStep = 1)}
+              />
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <div class="status-indicator">
     <span class="dot" class:active={isConnected}></span>

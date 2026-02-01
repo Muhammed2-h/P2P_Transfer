@@ -19,11 +19,46 @@
   import LinkStats from "./LinkStats.svelte";
 
   import { onDestroy } from "svelte";
+  import QRScanner from "./QRScanner.svelte";
+  import QRCode from "qrcode";
 
   let code = "";
   let fileInput;
   let nearbyPeers = [];
   let unsubscribeDiscovery;
+
+  // Air-Gap (Truly Offline) Mode
+  let isAirGap = false;
+  let airGapStep = 1; // 1: Scan Offer, 2: Show Answer
+  let manualAnswerQr = "";
+  let isGeneratingAnswer = false;
+
+  async function handleScanOffer(e) {
+    const minifiedOffer = e.detail;
+    isAirGap = true;
+    airGapStep = 2;
+    isGeneratingAnswer = true;
+    try {
+      const minifiedAnswer = await p2p.acceptManualOffer(minifiedOffer);
+      manualAnswerQr = await QRCode.toDataURL(minifiedAnswer, {
+        margin: 2,
+        scale: 4,
+        errorCorrectionLevel: "L",
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Invalid QR code or handshake failed.");
+      isAirGap = false;
+    } finally {
+      isGeneratingAnswer = false;
+    }
+  }
+
+  function cancelAirGap() {
+    isAirGap = false;
+    airGapStep = 1;
+    p2p.cleanup();
+  }
 
   onMount(() => {
     // Real-Time Auto-Discovery
@@ -124,6 +159,65 @@
         {/if}
       </button>
     </div>
+
+    <div class="divider">
+      <span>OR</span>
+    </div>
+
+    <div class="offline-section">
+      <button
+        class="btn-secondary"
+        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+        on:click={() => (isAirGap = true)}
+      >
+        <Wifi size={18} /> Join Offline Handshake
+      </button>
+    </div>
+
+    {#if isAirGap}
+      <div class="airgap-overlay fade-in">
+        <div class="airgap-modal glass-panel">
+          <div class="modal-header">
+            <h3>Offline Handshake</h3>
+            <button class="btn-icon" on:click={cancelAirGap}
+              ><X size={20} /></button
+            >
+          </div>
+
+          <div class="airgap-content">
+            {#if airGapStep === 1}
+              <div class="step-box">
+                <span class="step-num">Step 1</span>
+                <p>
+                  Scan the <strong>Sender's</strong> QR code (the one they showed
+                  in Step 1):
+                </p>
+                <QRScanner
+                  title="Scan Sender Offer"
+                  on:scan={handleScanOffer}
+                  on:close={cancelAirGap}
+                />
+              </div>
+            {:else}
+              <div class="step-box">
+                <span class="step-num">Step 2</span>
+                <p>
+                  Now, ask the <strong>Sender</strong> to scan this QR code:
+                </p>
+                <div class="qr-display">
+                  {#if isGeneratingAnswer}
+                    <div class="loader">Generating Answer...</div>
+                  {:else if manualAnswerQr}
+                    <img src={manualAnswerQr} alt="Handshake Answer" />
+                  {/if}
+                </div>
+                <p class="hint">Keep this screen open until connected.</p>
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+    {/if}
 
     {#if nearbyPeers.length > 0}
       <div class="nearby-section fade-in">
