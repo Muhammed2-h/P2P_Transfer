@@ -763,52 +763,56 @@ class P2PService {
 
             try {
                 const stats = await this.peerConnection.getStats();
-                let latency = 0;
-                let connectionType = 'unknown';
-                let bytesSent = 0;
-                let bytesReceived = 0;
+                let activePair = null;
+                const candidates = new Map();
 
+                // 1. Index all candidates
                 stats.forEach(report => {
-                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-                        latency = report.currentRoundTripTime * 1000 || 0;
-                    }
-                    if (report.type === 'remote-candidate' && report.candidateType) {
-                        connectionType = report.candidateType; // host, srflx, relay
-                    }
-                    // Fallback for connection type if local is easier to read
-                    if (report.type === 'local-candidate' && report.candidateType && connectionType === 'unknown') {
-                        // This usually shows OUR type, but useful inference
-                    }
-                    
-                    if (report.type === 'outbound-rtp' && !report.isRemote) {
-                         // Fallback speed calc if needed, but we do it nicely in logic
+                    if (report.type === 'remote-candidate' || report.type === 'local-candidate') {
+                        candidates.set(report.id, report);
                     }
                 });
-                
-                // Map complex types to user friendly
-                const typeMap = {
-                    'host': 'Local LAN (Fastest)',
-                    'srflx': 'P2P (STUN)',
-                    'prflx': 'P2P (Nat)',
-                    'relay': 'Relay (TURN/Slow)'
-                };
 
-                const friendlyType = typeMap[connectionType] || connectionType;
-                
-                // Buffer Health
-                const buffer = this.dataChannel ? this.dataChannel.bufferedAmount : 0;
-                const bufferHealth = buffer < BUFFER_THRESHOLD ? 'Healthy' : 'Congested';
-
-                transfer.update(s => ({
-                    ...s,
-                    networkStats: {
-                        latency: Math.round(latency),
-                        connectionType: friendlyType,
-                        bufferHealth: bufferHealth,
-                        bufferSize: buffer
+                // 2. Find the Active Candidate Pair
+                stats.forEach(report => {
+                    // Check for standard 'candidate-pair' with 'succeeded' state.
+                    // Some browsers use 'nominated' boolean.
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        // If multiple succeeded, prefer the one with highest priority or just the latest (usually only one active)
+                        activePair = report;
                     }
-                }));
+                });
 
+                if (activePair) {
+                    const latency = (activePair.currentRoundTripTime || 0) * 1000;
+                    
+                    // Resolve connection type from the remote candidate
+                    const remoteCand = candidates.get(activePair.remoteCandidateId);
+                    const connectionType = remoteCand ? remoteCand.candidateType : 'unknown';
+
+                    // Map types
+                    const typeMap = {
+                        'host': 'Local LAN (Fastest)',
+                        'srflx': 'P2P (STUN)',
+                        'prflx': 'P2P (Nat)',
+                        'relay': 'Relay (TURN/Slow)'
+                    };
+                    const friendlyType = typeMap[connectionType] || connectionType;
+
+                    // Buffer Health
+                    const buffer = this.dataChannel ? this.dataChannel.bufferedAmount : 0;
+                    const bufferHealth = buffer < BUFFER_THRESHOLD ? 'Healthy' : 'Congested';
+
+                    transfer.update(s => ({
+                        ...s,
+                        networkStats: {
+                            latency: Math.round(latency),
+                            connectionType: friendlyType,
+                            bufferHealth: bufferHealth,
+                            bufferSize: buffer
+                        }
+                    }));
+                }
             } catch (e) {
                 console.warn("Stats error", e);
             }
