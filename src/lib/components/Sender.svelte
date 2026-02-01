@@ -120,36 +120,39 @@
     }
   }
 
-  function addDirectoryToZip(zip, dirEntry) {
+  async function addDirectoryToZip(zip, dirEntry) {
     const reader = dirEntry.createReader();
-    return new Promise((resolve, reject) => {
-      const readEntries = () => {
-        reader.readEntries(async (entries) => {
-          if (entries.length === 0) {
+    const entries = [];
+
+    // 1. Read all entries (handle browser pagination of 100 items)
+    const readBatch = () => {
+      return new Promise((resolve, reject) => {
+        reader.readEntries((results) => {
+          if (results.length > 0) {
+            entries.push(...results);
+            resolve(readBatch()); // Recurse until empty
+          } else {
             resolve();
-            return;
           }
-
-          const promises = entries.map(async (entry) => {
-            if (entry.isDirectory) {
-              await addDirectoryToZip(zip.folder(entry.name), entry);
-            } else {
-              await new Promise((resFile, rejFile) => {
-                entry.file((file) => {
-                  zip.file(entry.name, file);
-                  resFile();
-                }, rejFile);
-              });
-            }
-          });
-
-          await Promise.all(promises);
-          // Recursively call for more entries in same dir (pagination)
-          readEntries();
         }, reject);
-      };
-      readEntries();
-    });
+      });
+    };
+    await readBatch();
+
+    // 2. Process all entries
+    for (const entry of entries) {
+      if (entry.isDirectory) {
+        await addDirectoryToZip(zip.folder(entry.name), entry);
+      } else {
+        // File
+        await new Promise((resolve, reject) => {
+          entry.file((file) => {
+            zip.file(entry.name, file);
+            resolve();
+          }, reject);
+        });
+      }
+    }
   }
 
   // Cloud Transfer Logic
