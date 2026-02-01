@@ -33,10 +33,12 @@ const PROVIDERS = [
         parse: (response) => {
             const res = JSON.parse(response);
             if (res.status !== 'success') throw new Error('Upload failed');
-            // tmpfiles returns a display URL, we need to convert it to download URL sometimes
-            // But usually the url provided in data is the display one: https://tmpfiles.org/123/file.jpg
-            // The direct download is usually adding /dl/ ? No, let's just give the link.
-            return { link: res.data.url, expiry: '60 minutes' };
+            // Convert to direct download link: https://tmpfiles.org/123/file -> https://tmpfiles.org/dl/123/file
+            let url = res.data.url;
+            if (url.includes('tmpfiles.org/')) {
+                url = url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+            }
+            return { link: url, expiry: '60 minutes' };
         }
     }
 ];
