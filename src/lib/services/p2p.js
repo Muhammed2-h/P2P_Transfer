@@ -131,7 +131,7 @@ class P2PService {
 
     async createManualOffer() {
         console.log("Generating Offline Handshake...");
-        this.createPeerConnection();
+        this.createPeerConnection(true); // isManual = true
         this.dataChannel = this.peerConnection.createDataChannel('file-transfer', { ordered: true });
         this.setupDataChannel(this.dataChannel);
 
@@ -171,17 +171,20 @@ class P2PService {
     }
 
     async acceptManualOffer(minifiedOffer) {
-        this.createPeerConnection();
-        this.peerConnection.ondatachannel = (event) => {
-            this.dataChannel = event.channel;
-            this.setupDataChannel(this.dataChannel);
-        };
+        try {
+            this.createPeerConnection(true); // isManual = true
+            this.peerConnection.ondatachannel = (event) => {
+                this.dataChannel = event.channel;
+                this.setupDataChannel(this.dataChannel);
+            };
 
-        const sdp = sdpUtils.expand(minifiedOffer);
-        await this.peerConnection.setRemoteDescription({ type: 'offer', sdp });
+            const sdp = sdpUtils.expand(minifiedOffer);
+            console.log("Accepting Offer. Expanded SDP length:", sdp.length);
+            
+            await this.peerConnection.setRemoteDescription({ type: 'offer', sdp });
 
-        const answer = await this.peerConnection.createAnswer();
-        await this.peerConnection.setLocalDescription(answer);
+            const answer = await this.peerConnection.createAnswer();
+            await this.peerConnection.setLocalDescription(answer);
 
         // Wait for ICE gathering
         await new Promise(resolve => {
@@ -200,18 +203,30 @@ class P2PService {
             if (this.peerConnection.iceGatheringState === 'complete') check();
         });
 
-        return sdpUtils.minify(this.peerConnection.localDescription.sdp);
+            return sdpUtils.minify(this.peerConnection.localDescription.sdp);
+        } catch (err) {
+            console.error("Manual Offer Accept Failed:", err);
+            throw new Error("Handshake failed: " + err.message);
+        }
     }
 
     async finalizeManualHandshake(minifiedAnswer) {
-        const sdp = sdpUtils.expand(minifiedAnswer);
-        await this.peerConnection.setRemoteDescription({ type: 'answer', sdp });
+        try {
+            const sdp = sdpUtils.expand(minifiedAnswer);
+            console.log("Finalizing Handshake. Expanded Answer length:", sdp.length);
+            await this.peerConnection.setRemoteDescription({ type: 'answer', sdp });
+        } catch (err) {
+            console.error("Manual Handshake Finalize Failed:", err);
+            throw new Error("Finalize failed: " + err.message);
+        }
     }
 
     // --- WebRTC Setup ---
 
-    createPeerConnection() {
-        this.peerConnection = new RTCPeerConnection(ICE_SERVERS);
+    createPeerConnection(isManual = false) {
+        // For offline mode, use NO ice servers to prevent timeouts
+        const config = isManual ? { ...ICE_SERVERS, iceServers: [] } : ICE_SERVERS;
+        this.peerConnection = new RTCPeerConnection(config);
 
         this.peerConnection.onicecandidate = (event) => {
             if (event.candidate && this.socket && this.socket.connected) {

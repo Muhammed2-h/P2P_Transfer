@@ -9,29 +9,36 @@
 
 export const sdpUtils = {
     minify(sdp) {
-        // 1. Remove unnecessary media sections if they existing (just in case)
-        // 2. Remove all 'a=rtpmap', 'a=fmtp', 'a=extmap', 'a=ssrc' lines (Audio/Video junk)
-        // 3. Remove 'a=msid', 'a=bundle-only'
-        // 4. Filter ICE candidates: Keep only 'host' (local network) candidates for offline mode
-        
-        const lines = sdp.split('\r\n');
+        // Normalize line endings and filter
+        const lines = sdp.split(/\r?\n/);
         const minified = lines.filter(line => {
-            if (line.startsWith('a=rtpmap:')) return false;
-            if (line.startsWith('a=fmtp:')) return false;
-            if (line.startsWith('a=extmap:')) return false;
-            if (line.startsWith('a=ssrc:')) return false;
-            if (line.startsWith('a=msid:')) return false;
-            if (line.startsWith('a=rtcp-fb:')) return false;
-            if (line.startsWith('a=candidate:') && !line.includes('typ host')) return false;
-            if (line.trim() === '') return false;
+            const l = line.trim();
+            if (l === '') return false;
+            if (l.startsWith('a=rtpmap:')) return false;
+            if (l.startsWith('a=fmtp:')) return false;
+            if (l.startsWith('a=extmap:')) return false;
+            if (l.startsWith('a=ssrc:')) return false;
+            if (l.startsWith('a=msid:')) return false;
+            if (l.startsWith('a=rtcp-fb:')) return false;
+            if (l.startsWith('a=rtcp:')) return false;
+            if (l.startsWith('a=mid:')) return false; // Usually redundant for data-only
+            
+            // Keep only host candidates to save space
+            if (l.startsWith('a=candidate:') && !l.includes('typ host')) return false;
+            
             return true;
         });
 
-        return minified.join('\n'); // Use \n for smaller size than \r\n
+        return minified.join('\n');
     },
 
     expand(minifiedSdp) {
-        // Reverse \n back to \r\n for browser compatibility
-        return minifiedSdp.split('\n').join('\r\n');
+        if (!minifiedSdp) return '';
+        // Restore CRLF for browser compatibility
+        let lines = minifiedSdp.trim().split('\n');
+        
+        // Ensure some critical lines are preserved (v=0, o=, s=, t=, c=, m=)
+        // These are kept by the minify filter, but we ensure proper formatting here
+        return lines.join('\r\n') + '\r\n';
     }
 };
