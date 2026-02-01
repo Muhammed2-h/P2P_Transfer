@@ -9,36 +9,66 @@
 
 export const sdpUtils = {
     /** 
-     * Structural Minifier: Keeps the core WebRTC lines but strips 80% of the 'junk'.
-     * This is far more reliable than binary reconstruction.
+     * V3: Universal JSON Handshake.
+     * Most robust method: Extracts only the dict of keys and encodes as Base64.
      */
     minify(sdp) {
         if (!sdp) return "";
-        const lines = sdp.split(/\r?\n/);
-        const filtered = lines.filter(line => {
-            const l = line.trim();
-            // Core WebRTC protocol lines
-            if (l.startsWith('v=') || l.startsWith('o=') || l.startsWith('s=') || l.startsWith('t=') || l.startsWith('m=') || l.startsWith('c=')) return true;
-            // Essential attributes
-            if (l.startsWith('a=fingerprint:') || l.startsWith('a=ice-ufrag:') || l.startsWith('a=ice-pwd:') || l.startsWith('a=setup:')) return true;
-            if (l.startsWith('a=mid:') || l.startsWith('a=sctp-port:')) return true;
-            if (l.startsWith('a=group:BUNDLE')) return true;
-            // Only host candidates (Local WiFi)
-            if (l.startsWith('a=candidate:') && l.includes('typ host')) return true;
-            return false;
-        });
-
-        // Use a single character delimiter to save space
-        return filtered.join('§');
+        try {
+            const data = {
+                f: sdp.match(/a=fingerprint:sha-256\s+([^\r\n]+)/)?.[1],
+                u: sdp.match(/a=ice-ufrag:([^\r\n]+)/)?.[1],
+                p: sdp.match(/a=ice-pwd:([^\r\n]+)/)?.[1],
+                s: sdp.match(/a=setup:([^\r\n]+)/)?.[1],
+                i: sdp.match(/a=candidate:\d+\s+\d+\s+udp\s+\d+\s+([\d\.]+)\s+(\d+)\s+typ\s+host/)?.[1],
+                port: sdp.match(/a=candidate:\d+\s+\d+\s+udp\s+\d+\s+([\d\.]+)\s+(\d+)\s+typ\s+host/)?.[2]
+            };
+            
+            // Short labels, stringify, and Base64
+            const json = JSON.stringify(data);
+            return 'v3:' + btoa(json);
+        } catch (e) {
+            console.error("SDP Minify Error:", e);
+            return sdp;
+        }
     },
 
     expand(minified) {
         if (!minified) return "";
-        
-        // Handle both new (V3) and old formats gracefully
-        const lines = minified.includes('§') ? minified.split('§') : minified.split(/\r?\n/);
-        
-        // Ensure proper line endings for the browser
-        return lines.map(line => line.trim()).filter(l => l).join('\r\n') + '\r\n';
+        if (!minified.startsWith('v3:')) {
+            // Fallback for older formats
+            return minified.includes('§') ? minified.split('§').join('\r\n') + '\r\n' : minified;
+        }
+
+        try {
+            const json = atob(minified.substring(3));
+            const d = JSON.parse(json);
+
+            const sdpLines = [
+                'v=0',
+                'o=- 0 0 IN IP4 127.0.0.1',
+                's=-',
+                't=0 0',
+                'a=msid-semantic: WMS',
+                'm=application 9 DTLS/SCTP webrtc-datachannel',
+                'c=IN IP4 0.0.0.0',
+                `a=setup:${d.s || 'actpass'}`,
+                `a=ice-ufrag:${d.u}`,
+                `a=ice-pwd:${d.p}`,
+                `a=fingerprint:sha-256 ${d.f}`,
+                'a=mid:0',
+                'a=sctp-port:5000',
+                'a=sctpmap:5000 webrtc-datachannel 1024'
+            ];
+
+            if (d.i && d.port) {
+                sdpLines.push(`a=candidate:1 1 udp 2122260223 ${d.i} ${d.port} typ host`);
+            }
+
+            return sdpLines.join('\r\n') + '\r\n';
+        } catch (e) {
+            console.error("SDP Expand Error:", e);
+            return minified;
+        }
     }
 };
