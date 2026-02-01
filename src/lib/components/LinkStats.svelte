@@ -95,16 +95,16 @@
     background: rgba(255, 255, 255, 0.1);
   }
 
-  .text-success {
-    color: #10b981;
+  :global(.text-success) {
+    color: #10b981 !important;
   }
-  .text-warning {
-    color: #f59e0b;
+  :global(.text-warning) {
+    color: #f59e0b !important;
   }
-  .text-error {
-    color: #ef4444;
+  :global(.text-error) {
+    color: #ef4444 !important;
   }
-  .text-primary {
-    color: var(--primary-color);
+  :global(.text-primary) {
+    color: var(--primary-color) !important;
   }
 </style>
