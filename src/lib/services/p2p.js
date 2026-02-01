@@ -5,7 +5,6 @@ import { get } from 'svelte/store';
 import { history } from '../stores/history';
 import { playSound } from '../utils/sounds';
 import { settings } from '../stores/settings';
-import { sdpUtils } from '../utils/sdp';
 
 // Configurations
 const CHUNK_SIZE = 16 * 1024; // 16KB (MTU-safe)
@@ -48,10 +47,6 @@ class P2PService {
     // --- Signaling ---
 
     init(sessionId, isSender) {
-        // Support custom room names (alphanumeric)
-        const cleanId = sessionId.toString().trim().toUpperCase();
-        transfer.update(s => ({ ...s, sessionId: cleanId, isSender }));
-        
         // Security check: WebRTC/Service Workers require HTTPS or localhost
         if (!window.isSecureContext) {
             transfer.update(s => ({ 
@@ -131,109 +126,13 @@ class P2PService {
         }
     }
 
-    // --- Manual Signaling (Truly Offline) ---
-
-    async createManualOffer() {
-        console.log("Generating Offline Handshake...");
-        this.createPeerConnection(true); // isManual = true
-        this.dataChannel = this.peerConnection.createDataChannel('file-transfer', { ordered: true });
-        this.setupDataChannel(this.dataChannel);
-
-        const offer = await this.peerConnection.createOffer();
-        await this.peerConnection.setLocalDescription(offer);
-
-        // Optimization: Resolve as soon as we have at least one 'host' candidate
-        // or after a 1.5s maximum timeout for extreme cases.
-        await new Promise(resolve => {
-            const timeout = setTimeout(() => {
-                console.log("ICE Gathering timeout reached");
-                resolve();
-            }, 1500);
-
-            const check = (event) => {
-                if (this.peerConnection.iceGatheringState === 'complete' || 
-                    (event && event.candidate && event.candidate.type === 'host')) {
-                    console.log("Found Host Candidate or Gathering Complete");
-                    clearTimeout(timeout);
-                    this.peerConnection.removeEventListener('icecandidate', check);
-                    this.peerConnection.removeEventListener('icegatheringstatechange', check);
-                    // Minimal delay to ensure SDP is updated with the candidate
-                    setTimeout(resolve, 50);
-                }
-            };
-
-            this.peerConnection.addEventListener('icecandidate', check);
-            this.peerConnection.addEventListener('icegatheringstatechange', check);
-            
-            // Check current state in case it finished instantly
-            if (this.peerConnection.iceGatheringState === 'complete') check();
-        });
-
-        const minified = sdpUtils.minify(this.peerConnection.localDescription.sdp);
-        console.log("Offline Handshake Ready. Minified SDP Length:", minified.length);
-        return minified;
-    }
-
-    async acceptManualOffer(minifiedOffer) {
-        try {
-            this.createPeerConnection(true); // isManual = true
-            this.peerConnection.ondatachannel = (event) => {
-                this.dataChannel = event.channel;
-                this.setupDataChannel(this.dataChannel);
-            };
-
-            const sdp = sdpUtils.expand(minifiedOffer);
-            console.log("Accepting Offer. Expanded SDP length:", sdp.length);
-            
-            await this.peerConnection.setRemoteDescription({ type: 'offer', sdp });
-
-            const answer = await this.peerConnection.createAnswer();
-            await this.peerConnection.setLocalDescription(answer);
-
-        // Wait for ICE gathering
-        await new Promise(resolve => {
-            const timeout = setTimeout(resolve, 1500);
-            const check = (event) => {
-                if (this.peerConnection.iceGatheringState === 'complete' || 
-                    (event && event.candidate && event.candidate.type === 'host')) {
-                    clearTimeout(timeout);
-                    this.peerConnection.removeEventListener('icecandidate', check);
-                    this.peerConnection.removeEventListener('icegatheringstatechange', check);
-                    setTimeout(resolve, 50);
-                }
-            };
-            this.peerConnection.addEventListener('icecandidate', check);
-            this.peerConnection.addEventListener('icegatheringstatechange', check);
-            if (this.peerConnection.iceGatheringState === 'complete') check();
-        });
-
-            return sdpUtils.minify(this.peerConnection.localDescription.sdp);
-        } catch (err) {
-            console.error("Manual Offer Accept Failed:", err);
-            throw new Error("Handshake failed: " + err.message);
-        }
-    }
-
-    async finalizeManualHandshake(minifiedAnswer) {
-        try {
-            const sdp = sdpUtils.expand(minifiedAnswer);
-            console.log("Finalizing Handshake. Expanded Answer length:", sdp.length);
-            await this.peerConnection.setRemoteDescription({ type: 'answer', sdp });
-        } catch (err) {
-            console.error("Manual Handshake Finalize Failed:", err);
-            throw new Error("Finalize failed: " + err.message);
-        }
-    }
-
     // --- WebRTC Setup ---
 
-    createPeerConnection(isManual = false) {
-        // For offline mode, use NO ice servers to prevent timeouts
-        const config = isManual ? { ...ICE_SERVERS, iceServers: [] } : ICE_SERVERS;
-        this.peerConnection = new RTCPeerConnection(config);
+    createPeerConnection() {
+        this.peerConnection = new RTCPeerConnection(ICE_SERVERS);
 
         this.peerConnection.onicecandidate = (event) => {
-            if (event.candidate && this.socket && this.socket.connected) {
+            if (event.candidate) {
                 this.socket.emit('ice-candidate', {
                     roomId: get(transfer).sessionId,
                     candidate: event.candidate
@@ -328,7 +227,8 @@ class P2PService {
             file: file,
             name: file.name,
             size: file.size,
-            status: 'queued' // queued, transferring, completed
+            status: 'queued', // queued, transferring, completed
+            timestamp: Date.now()
         };
 
         transfer.update(s => {
@@ -355,7 +255,7 @@ class P2PService {
     sendQueueUpdate(queue) {
         if (!this.dataChannel || this.dataChannel.readyState !== 'open') return;
         // Strip the actual file object before sending JSON
-        const safeQueue = queue.map(f => ({ id: f.id, name: f.name, size: f.size, status: f.status }));
+        const safeQueue = queue.map(f => ({ id: f.id, name: f.name, size: f.size, status: f.status, timestamp: f.timestamp }));
 
         this.dataChannel.send(JSON.stringify({
             type: 'QUEUE_UPDATE',

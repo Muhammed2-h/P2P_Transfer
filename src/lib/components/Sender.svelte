@@ -25,31 +25,19 @@
   import { CloudUpload } from "lucide-svelte";
   import { cryptoUtils } from "../utils/crypto";
   import JSZip from "jszip";
-  import QRScanner from "./QRScanner.svelte";
+  import { formatDate } from "../utils/format";
 
   let sessionId = "";
   let qrCodeUrl = "";
   let showQr = false;
   let fileInput;
 
-  let isEditingCode = false;
-
   function initSession() {
     // Clean up old if exists
     p2p.cleanup();
-    if (!sessionId) {
-      sessionId = uuidv4().slice(0, 6).toUpperCase();
-    }
+    sessionId = uuidv4().slice(0, 6).toUpperCase();
     p2p.init(sessionId, true);
     generateQrCode();
-  }
-
-  function toggleCodeEdit() {
-    if (isEditingCode) {
-      // Save and Restart
-      initSession();
-    }
-    isEditingCode = !isEditingCode;
   }
 
   async function generateQrCode() {
@@ -71,57 +59,6 @@
   let connectionRequest = false;
   let nearbyPeers = [];
   let unsubscribeDiscovery;
-
-  // Air-Gap (Truly Offline) Mode
-  let isAirGap = false;
-  let airGapStep = 1; // 1: Show Offer, 2: Scan Answer
-  let manualOfferQr = "";
-  let isGeneratingOffer = false;
-
-  async function startAirGap() {
-    isAirGap = true;
-    isGeneratingOffer = true;
-    manualOfferQr = "";
-    console.log("Triggering startAirGap...");
-    try {
-      const minified = await p2p.createManualOffer();
-      console.log("Minified SDP size:", minified.length);
-
-      // Generate QR with high error correction (L) to fit more data
-      manualOfferQr = await QRCode.toDataURL(minified, {
-        margin: 2,
-        scale: 4,
-        errorCorrectionLevel: "L",
-      });
-      console.log("QR Code generated successfully.");
-    } catch (err) {
-      console.error("AirGap Error:", err);
-      alert("Failed to generate offline offer: " + err.message);
-      isAirGap = false;
-    } finally {
-      isGeneratingOffer = false;
-    }
-  }
-
-  function cancelAirGap() {
-    isAirGap = false;
-    airGapStep = 1;
-    p2p.cleanup();
-    initSession();
-  }
-
-  async function handleScanAnswer(e) {
-    const minifiedAnswer = e.detail;
-    try {
-      await p2p.finalizeManualHandshake(minifiedAnswer);
-      isAirGap = false;
-      airGapStep = 1;
-      // The p2p.js setupDataChannel will trigger TRANSFER_STATES.CONNECTED onopen
-    } catch (err) {
-      console.error(err);
-      alert("Invalid QR code or connection failed. Try again.");
-    }
-  }
 
   import { Monitor, Wifi } from "lucide-svelte";
   import { onDestroy } from "svelte";
@@ -442,40 +379,14 @@
     <p class="label">Share this code with the receiver:</p>
     <div class="code-wrapper">
       <div class="code-box">
-        {#if isEditingCode}
-          <input
-            type="text"
-            bind:value={sessionId}
-            maxlength="20"
-            class="code-input"
-            placeholder="Type Room Name..."
-            on:keydown={(e) => e.key === "Enter" && toggleCodeEdit()}
-          />
-        {:else}
-          <span class="code">{sessionId}</span>
-        {/if}
-
-        <button
-          class="copy-btn"
-          on:click={toggleCodeEdit}
-          title={isEditingCode ? "Save Name" : "Edit Name"}
-        >
-          {#if isEditingCode}
-            <div class="save-icon">Done</div>
+        <span class="code">{sessionId}</span>
+        <button class="copy-btn" on:click={copyCode} title="Copy Code">
+          {#if isCopied}
+            <span class="copied-text">Copied!</span>
           {:else}
-            <div class="edit-icon">Edit</div>
+            <Copy size={20} />
           {/if}
         </button>
-
-        {#if !isEditingCode}
-          <button class="copy-btn" on:click={copyCode} title="Copy Code">
-            {#if isCopied}
-              <span class="copied-text">Copied!</span>
-            {:else}
-              <Copy size={20} />
-            {/if}
-          </button>
-        {/if}
         <button
           class="copy-btn qr-toggle-btn"
           class:active={showQr}
@@ -498,60 +409,10 @@
       {#if !isConnected}
         <div class="refresh-wrapper">
           <RefreshTimer onRefresh={initSession} />
-          <button class="btn-xs airgap-btn" on:click={startAirGap}>
-            <Wifi size={14} /> Offline Handshake
-          </button>
         </div>
       {/if}
     </div>
   </div>
-
-  {#if isAirGap}
-    <div class="airgap-overlay fade-in">
-      <div class="airgap-modal glass-panel">
-        <div class="modal-header">
-          <h3>Offline Handshake</h3>
-          <button class="btn-icon" on:click={cancelAirGap}
-            ><X size={20} /></button
-          >
-        </div>
-
-        <div class="airgap-content">
-          {#if airGapStep === 1}
-            <div class="step-box">
-              <span class="step-num">Step 1</span>
-              <p>
-                Ask the receiver to click <strong>"Scan Handshake"</strong> and scan
-                this code:
-              </p>
-              <div class="qr-display">
-                {#if isGeneratingOffer}
-                  <div class="loader">Generating Offer...</div>
-                {:else if manualOfferQr}
-                  <img src={manualOfferQr} alt="Handshake Offer" />
-                {/if}
-              </div>
-              <button class="btn-primary" on:click={() => (airGapStep = 2)}
-                >Next: Scan Answer</button
-              >
-            </div>
-          {:else}
-            <div class="step-box">
-              <span class="step-num">Step 2</span>
-              <p>
-                Now, scan the QR code shown on the <strong>Receiver's</strong> screen:
-              </p>
-              <QRScanner
-                title="Scan Peer Answer"
-                on:scan={handleScanAnswer}
-                on:close={() => (airGapStep = 1)}
-              />
-            </div>
-          {/if}
-        </div>
-      </div>
-    </div>
-  {/if}
 
   <div class="status-indicator">
     <span class="dot" class:active={isConnected}></span>
@@ -609,9 +470,14 @@
         <div class="queue-item">
           <div class="file-info">
             <span class="file-name">{item.name}</span>
-            <span class="file-size"
-              >({(item.size / 1024 / 1024).toFixed(2)} MB)</span
-            >
+            <div class="file-meta">
+              <span class="file-size"
+                >{(item.size / 1024 / 1024).toFixed(2)} MB</span
+              >
+              {#if item.timestamp}
+                <span class="file-date">• {formatDate(item.timestamp)}</span>
+              {/if}
+            </div>
           </div>
           <div class="file-actions">
             {#if item.status === "queued" || item.status === "completed-cloud"}
@@ -668,9 +534,14 @@
         <div class="queue-item">
           <div class="file-info">
             <span class="file-name">{item.name}</span>
-            <span class="file-size"
-              >({(item.size / 1024 / 1024).toFixed(2)} MB)</span
-            >
+            <div class="file-meta">
+              <span class="file-size"
+                >{(item.size / 1024 / 1024).toFixed(2)} MB</span
+              >
+              {#if item.timestamp}
+                <span class="file-date">• {formatDate(item.timestamp)}</span>
+              {/if}
+            </div>
           </div>
           <div class="file-actions">
             {#if item.status === "completed"}
@@ -834,6 +705,27 @@
     .code {
       font-size: 2rem;
     }
+  }
+
+  .file-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+  .file-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  .file-date {
+    opacity: 0.8;
+  }
+  .file-name {
+    font-weight: 500;
+    color: white;
   }
 
   .copy-btn {
