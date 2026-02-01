@@ -9,12 +9,12 @@
 
 export const sdpUtils = {
     /** 
-     * Converts a full SDP into a tiny, 'Potato-Webcam-Friendly' string.
-     * Takes ~2000 chars down to ~120 chars.
+     * Converts a full SDP into a tiny string.
+     * Strips colons from fingerprints to save ~31 chars.
      */
     toBinaryHandshake(sdp) {
         try {
-            const fingerprint = sdp.match(/a=fingerprint:sha-256\s+([^\r\n]+)/)?.[1];
+            const fingerprint = sdp.match(/a=fingerprint:sha-256\s+([^\r\n]+)/)?.[1]?.replace(/:/g, '');
             const ufrag = sdp.match(/a=ice-ufrag:([^\r\n]+)/)?.[1];
             const pwd = sdp.match(/a=ice-pwd:([^\r\n]+)/)?.[1];
             const setup = sdp.match(/a=setup:([^\r\n]+)/)?.[1];
@@ -27,22 +27,34 @@ export const sdpUtils = {
             if (!fingerprint || !ufrag || !pwd) throw new Error("Incomplete SDP");
 
             // Format: Version|Setup|Ufrag|Pwd|Fingerprint|IP|Port
-            // Using '|' as a delimiter for minimal overhead
-            return `v1|${setup === 'active' ? 'a' : 'p'}|${ufrag}|${pwd}|${fingerprint}|${ip || ''}|${port || ''}`;
+            let s = 'actpass';
+            if (setup === 'active') s = 'a';
+            if (setup === 'passive') s = 'p';
+            if (setup === 'actpass') s = 'ap';
+
+            return `v2|${s}|${ufrag}|${pwd}|${fingerprint}|${ip || ''}|${port || ''}`;
         } catch (e) {
             console.error("Binary Handshake Export Failed", e);
-            return sdp; // Fallback to raw (minified) if something goes wrong
+            return sdp;
         }
     },
 
     /**
-     * Reconstructs a valid WebRTC SDP from the tiny binary string.
+     * Reconstructs a valid WebRTC SDP.
      */
-    fromBinaryHandshake(binary, type = 'offer') {
-        if (!binary.startsWith('v1|')) return binary; // It's likely already a minified SDP
+    fromBinaryHandshake(binary) {
+        if (!binary.startsWith('v2|')) return binary;
 
-        const [v, setup, ufrag, pwd, fingerprint, ip, port] = binary.split('|');
+        const [v, s, ufrag, pwd, fingerprintRaw, ip, port] = binary.split('|');
         
+        // Restore fingerprint colons
+        const fingerprint = fingerprintRaw.match(/.{1,2}/g).join(':').toUpperCase();
+        
+        let setup = 'actpass';
+        if (s === 'a') setup = 'active';
+        if (s === 'p') setup = 'passive';
+        if (s === 'ap') setup = 'actpass';
+
         const sdpLines = [
             'v=0',
             'o=- 0 0 IN IP4 127.0.0.1',
@@ -51,33 +63,34 @@ export const sdpUtils = {
             'a=msid-semantic: WMS',
             'm=application 9 DTLS/SCTP webrtc-datachannel',
             'c=IN IP4 0.0.0.0',
-            `a=setup:${setup === 'a' ? 'active' : 'passive'}`,
+            `a=setup:${setup}`,
             `a=ice-ufrag:${ufrag}`,
             `a=ice-pwd:${pwd}`,
             `a=fingerprint:sha-256 ${fingerprint}`,
+            'a=mid:0',
+            'a=sctp-port:5000',
             'a=sctpmap:5000 webrtc-datachannel 1024'
         ];
 
         if (ip && port) {
-            sdpLines.push(`a=candidate:1 1 udp 1 ${ip} ${port} typ host`);
+            sdpLines.push(`a=candidate:1 1 udp 2122260223 ${ip} ${port} typ host`);
         }
 
         return sdpLines.join('\r\n') + '\r\n';
     },
 
     minify(sdp) {
-        // Fallback or legacy support
         return this.toBinaryHandshake(sdp);
     },
 
     expand(minified) {
-        // Automatically detects if it's binary or old-style minified
-        if (minified.startsWith('v1|')) {
+        if (minified.startsWith('v2|')) {
             return this.fromBinaryHandshake(minified);
         }
-        
-        // Old-style expand logic as fallback
-        if (!minified) return '';
-        return minified.trim().split('\n').join('\r\n') + '\r\n';
+        if (minified.startsWith('v1|')) {
+            // Legacy v1 support (just in case)
+            return minified.trim().split('\n').join('\r\n') + '\r\n';
+        }
+        return minified ? (minified.trim().split('\n').join('\r\n') + '\r\n') : '';
     }
 };
