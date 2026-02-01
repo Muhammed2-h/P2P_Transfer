@@ -55,7 +55,20 @@ class P2PService {
             this.socket.disconnect();
         });
         this.socket.on('peer-joined', () => {
-            if (isSender) this.startConnection();
+            if (isSender) {
+                // Security: Don't auto-connect. Ask for approval.
+                if (this.onConnectionRequestCallback) {
+                    this.onConnectionRequestCallback(); 
+                } else {
+                    // Fallback if no listener (shouldn't happen in new UI)
+                    this.startConnection();
+                }
+            }
+        });
+        
+        this.socket.on('kicked', () => {
+             transfer.update(s => ({ ...s, state: TRANSFER_STATES.ERROR, error: 'Connection rejected by host.' }));
+             this.cleanup();
         });
 
         this.socket.on('offer', async (offer) => {
@@ -80,6 +93,21 @@ class P2PService {
             transfer.update(s => ({ ...s, state: TRANSFER_STATES.ERROR, error: 'Session is full. Try a different code.' }));
             this.cleanup();
         });
+    }
+
+    // --- Connection Approval ---
+    setConnectionRequestListener(callback) {
+        this.onConnectionRequestCallback = callback;
+    }
+
+    approveConnection() {
+        this.startConnection();
+    }
+
+    rejectConnection() {
+        if (this.socket) {
+            this.socket.emit('kick-peer', { roomId: get(transfer).sessionId });
+        }
     }
 
     // --- WebRTC Setup ---

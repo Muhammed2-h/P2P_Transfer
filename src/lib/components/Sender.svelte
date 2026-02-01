@@ -4,6 +4,7 @@
   import { p2p } from "../services/p2p";
   import { transfer, TRANSFER_STATES } from "../stores/transfer";
   import { settings } from "../stores/settings";
+  import { playSound } from "../utils/sounds";
   import ProgressBar from "./ProgressBar.svelte";
   import RefreshTimer from "./RefreshTimer.svelte";
   import {
@@ -54,9 +55,28 @@
     }
   }
 
+  let connectionRequest = false;
+
   onMount(() => {
     initSession();
+
+    // Security: Listen for connection requests
+    p2p.setConnectionRequestListener(() => {
+      connectionRequest = true;
+      playSound("notification");
+    });
   });
+
+  function approveConnection() {
+    p2p.approveConnection();
+    connectionRequest = false;
+  }
+
+  function rejectConnection() {
+    p2p.rejectConnection();
+    connectionRequest = false;
+    // Ideally show a toast "Connection Rejected"
+  }
 
   let isCopied = false;
 
@@ -544,6 +564,19 @@
   {/if}
 </div>
 
+{#if connectionRequest}
+  <div class="request-modal-overlay">
+    <div class="request-modal">
+      <h3 style="margin-bottom: 0.5rem;">📲 Connection Request</h3>
+      <p style="color: #aaa;">A peer wants to join this session.</p>
+      <div class="request-actions">
+        <button class="btn-secondary" on:click={rejectConnection}>Block</button>
+        <button class="btn-primary" on:click={approveConnection}>Allow</button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style>
   .sender-container {
     max-width: 600px;
@@ -828,5 +861,45 @@
     color: var(--primary-color);
     background: rgba(99, 102, 241, 0.1);
     border-color: var(--primary-color);
+  }
+
+  /* Connection Request Modal */
+  .request-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+  }
+  .request-modal {
+    background: var(--surface-color);
+    padding: 2rem;
+    border-radius: 16px;
+    border: 1px solid var(--primary-color);
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .request-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    justify-content: center;
+  }
+  @keyframes popIn {
+    from {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
 </style>

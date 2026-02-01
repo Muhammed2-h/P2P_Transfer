@@ -105,6 +105,12 @@ io.on("connection", (socket) => {
     socket.on("ice-candidate", ({ roomId, candidate }) => {
         socket.to(roomId).emit("ice-candidate", candidate);
     });
+    
+    // Security: Handle peer rejection
+    socket.on("kick-peer", ({ roomId }) => {
+        socket.to(roomId).emit("kicked");
+        // Optionally disconnect them or just let the client side handle the UI error
+    });
 
     socket.on("disconnect", () => {
         // If a creator disconnects, we need to clean up and notify neighbors
