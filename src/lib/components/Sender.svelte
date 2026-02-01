@@ -70,17 +70,21 @@
     isAirGap = true;
     isGeneratingOffer = true;
     manualOfferQr = "";
+    console.log("Triggering startAirGap...");
     try {
       const minified = await p2p.createManualOffer();
+      console.log("Minified SDP size:", minified.length);
+
       // Generate QR with high error correction (L) to fit more data
       manualOfferQr = await QRCode.toDataURL(minified, {
         margin: 2,
         scale: 4,
         errorCorrectionLevel: "L",
       });
+      console.log("QR Code generated successfully.");
     } catch (err) {
-      console.error(err);
-      alert("Failed to generate offline offer.");
+      console.error("AirGap Error:", err);
+      alert("Failed to generate offline offer: " + err.message);
       isAirGap = false;
     } finally {
       isGeneratingOffer = false;

@@ -130,6 +130,7 @@ class P2PService {
     // --- Manual Signaling (Truly Offline) ---
 
     async createManualOffer() {
+        console.log("Generating Offline Handshake...");
         this.createPeerConnection();
         this.dataChannel = this.peerConnection.createDataChannel('file-transfer', { ordered: true });
         this.setupDataChannel(this.dataChannel);
@@ -137,18 +138,36 @@ class P2PService {
         const offer = await this.peerConnection.createOffer();
         await this.peerConnection.setLocalDescription(offer);
 
-        // Wait for ICE gathering to complete so we have all candidates in the SDP
+        // Optimization: Resolve as soon as we have at least one 'host' candidate
+        // or after a 1.5s maximum timeout for extreme cases.
         await new Promise(resolve => {
-            if (this.peerConnection.iceGatheringState === 'complete') {
+            const timeout = setTimeout(() => {
+                console.log("ICE Gathering timeout reached");
                 resolve();
-            } else {
-                this.peerConnection.onicegatheringstatechange = () => {
-                    if (this.peerConnection.iceGatheringState === 'complete') resolve();
-                };
-            }
+            }, 1500);
+
+            const check = (event) => {
+                if (this.peerConnection.iceGatheringState === 'complete' || 
+                    (event && event.candidate && event.candidate.type === 'host')) {
+                    console.log("Found Host Candidate or Gathering Complete");
+                    clearTimeout(timeout);
+                    this.peerConnection.removeEventListener('icecandidate', check);
+                    this.peerConnection.removeEventListener('icegatheringstatechange', check);
+                    // Minimal delay to ensure SDP is updated with the candidate
+                    setTimeout(resolve, 50);
+                }
+            };
+
+            this.peerConnection.addEventListener('icecandidate', check);
+            this.peerConnection.addEventListener('icegatheringstatechange', check);
+            
+            // Check current state in case it finished instantly
+            if (this.peerConnection.iceGatheringState === 'complete') check();
         });
 
-        return sdpUtils.minify(this.peerConnection.localDescription.sdp);
+        const minified = sdpUtils.minify(this.peerConnection.localDescription.sdp);
+        console.log("Offline Handshake Ready. Minified SDP Length:", minified.length);
+        return minified;
     }
 
     async acceptManualOffer(minifiedOffer) {
@@ -166,13 +185,19 @@ class P2PService {
 
         // Wait for ICE gathering
         await new Promise(resolve => {
-            if (this.peerConnection.iceGatheringState === 'complete') {
-                resolve();
-            } else {
-                this.peerConnection.onicegatheringstatechange = () => {
-                    if (this.peerConnection.iceGatheringState === 'complete') resolve();
-                };
-            }
+            const timeout = setTimeout(resolve, 1500);
+            const check = (event) => {
+                if (this.peerConnection.iceGatheringState === 'complete' || 
+                    (event && event.candidate && event.candidate.type === 'host')) {
+                    clearTimeout(timeout);
+                    this.peerConnection.removeEventListener('icecandidate', check);
+                    this.peerConnection.removeEventListener('icegatheringstatechange', check);
+                    setTimeout(resolve, 50);
+                }
+            };
+            this.peerConnection.addEventListener('icecandidate', check);
+            this.peerConnection.addEventListener('icegatheringstatechange', check);
+            if (this.peerConnection.iceGatheringState === 'complete') check();
         });
 
         return sdpUtils.minify(this.peerConnection.localDescription.sdp);
@@ -189,7 +214,7 @@ class P2PService {
         this.peerConnection = new RTCPeerConnection(ICE_SERVERS);
 
         this.peerConnection.onicecandidate = (event) => {
-            if (event.candidate) {
+            if (event.candidate && this.socket && this.socket.connected) {
                 this.socket.emit('ice-candidate', {
                     roomId: get(transfer).sessionId,
                     candidate: event.candidate
