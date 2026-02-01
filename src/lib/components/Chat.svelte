@@ -304,8 +304,13 @@
 
       const decryptedBlob = await cryptoUtils.decryptBlob(blob, key, iv);
 
+      // Restore Original MIME Type
+      const finalBlob = entry.type
+        ? new Blob([decryptedBlob], { type: entry.type })
+        : decryptedBlob;
+
       // Save
-      const url = URL.createObjectURL(decryptedBlob);
+      const url = URL.createObjectURL(finalBlob);
       const a = document.createElement("a");
       a.href = url;
       a.download = entry.name;

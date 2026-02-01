@@ -170,7 +170,12 @@
       );
 
       // 2. Upload Encrypted Blob
-      const result = await cloudRelay.upload(encryptedBlob, (progress) => {
+      // Wrap in File object so providers see a filename
+      const encFile = new File([encryptedBlob], "secure_vault.bin", {
+        type: "application/octet-stream",
+      });
+
+      const result = await cloudRelay.upload(encFile, (progress) => {
         cloudProgress = progress;
       });
 
@@ -183,6 +188,7 @@
         text: `🔒 **Encrypted Vault Transfer**: ${file.name}`,
         cloudEntry: {
           name: file.name,
+          type: file.type, // Send Original MIME
           size: file.size,
           url: result.link,
           key: keyB64,
