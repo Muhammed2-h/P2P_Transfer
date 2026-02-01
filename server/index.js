@@ -39,6 +39,9 @@ io.on("connection", (socket) => {
         clientIp = clientIp.substr(7);
     }
     
+    // Debug Log
+    console.log(`Connection: ${socket.id} | IP: ${clientIp} (Raw: ${rawIp})`);
+
     // Join a "IP Discovery Room" automatically to receive updates
     socket.join(`ip:${clientIp}`);
 
@@ -62,6 +65,7 @@ io.on("connection", (socket) => {
         
         // If creator (Sender), store IP for Auto-Discovery
         if (size === 0 && role === 'sender') {
+            console.log(`Room Created: ${roomId} | By IP: ${clientIp}`);
             roomMetadata.set(roomId, { ip: clientIp, created: Date.now() });
             // Broadcast update to neighbors immediately
             broadcastNearby(clientIp);
@@ -74,6 +78,7 @@ io.on("connection", (socket) => {
 
     // Manual Discovery Trigger
     socket.on("find-nearby", () => {
+        console.log(`Discovery Request from IP: ${clientIp}`);
         broadcastNearby(clientIp);
     });
 
