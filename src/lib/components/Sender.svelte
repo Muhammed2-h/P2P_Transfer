@@ -32,12 +32,24 @@
   let showQr = false;
   let fileInput;
 
+  let isEditingCode = false;
+
   function initSession() {
     // Clean up old if exists
     p2p.cleanup();
-    sessionId = uuidv4().slice(0, 6).toUpperCase();
+    if (!sessionId) {
+      sessionId = uuidv4().slice(0, 6).toUpperCase();
+    }
     p2p.init(sessionId, true);
     generateQrCode();
+  }
+
+  function toggleCodeEdit() {
+    if (isEditingCode) {
+      // Save and Restart
+      initSession();
+    }
+    isEditingCode = !isEditingCode;
   }
 
   async function generateQrCode() {
@@ -430,14 +442,40 @@
     <p class="label">Share this code with the receiver:</p>
     <div class="code-wrapper">
       <div class="code-box">
-        <span class="code">{sessionId}</span>
-        <button class="copy-btn" on:click={copyCode} title="Copy Code">
-          {#if isCopied}
-            <span class="copied-text">Copied!</span>
+        {#if isEditingCode}
+          <input
+            type="text"
+            bind:value={sessionId}
+            maxlength="20"
+            class="code-input"
+            placeholder="Type Room Name..."
+            on:keydown={(e) => e.key === "Enter" && toggleCodeEdit()}
+          />
+        {:else}
+          <span class="code">{sessionId}</span>
+        {/if}
+
+        <button
+          class="copy-btn"
+          on:click={toggleCodeEdit}
+          title={isEditingCode ? "Save Name" : "Edit Name"}
+        >
+          {#if isEditingCode}
+            <div class="save-icon">Done</div>
           {:else}
-            <Copy size={20} />
+            <div class="edit-icon">Edit</div>
           {/if}
         </button>
+
+        {#if !isEditingCode}
+          <button class="copy-btn" on:click={copyCode} title="Copy Code">
+            {#if isCopied}
+              <span class="copied-text">Copied!</span>
+            {:else}
+              <Copy size={20} />
+            {/if}
+          </button>
+        {/if}
         <button
           class="copy-btn qr-toggle-btn"
           class:active={showQr}

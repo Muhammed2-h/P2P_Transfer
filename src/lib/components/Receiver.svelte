@@ -141,9 +141,8 @@
     <div class="input-group">
       <input
         type="text"
-        placeholder="Enter 6-digit code"
+        placeholder="Enter Room Code (e.g., WARP)"
         bind:value={code}
-        maxlength="6"
         on:keydown={(e) => e.key === "Enter" && joinSession()}
       />
       <button

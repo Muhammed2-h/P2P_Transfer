@@ -48,6 +48,10 @@ class P2PService {
     // --- Signaling ---
 
     init(sessionId, isSender) {
+        // Support custom room names (alphanumeric)
+        const cleanId = sessionId.toString().trim().toUpperCase();
+        transfer.update(s => ({ ...s, sessionId: cleanId, isSender }));
+        
         // Security check: WebRTC/Service Workers require HTTPS or localhost
         if (!window.isSecureContext) {
             transfer.update(s => ({ 
