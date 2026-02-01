@@ -31,7 +31,13 @@ function broadcastNearby(ip) {
 
 io.on("connection", (socket) => {
     // Get IP (Handle headers for proxies/Vercel)
-    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    const rawIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    
+    // Sanitize: Take first IP if comma-separated, and strip IPv6 prefix if present
+    let clientIp = Array.isArray(rawIp) ? rawIp[0] : rawIp.split(',')[0].trim();
+    if (clientIp.startsWith('::ffff:')) {
+        clientIp = clientIp.substr(7);
+    }
     
     // Join a "IP Discovery Room" automatically to receive updates
     socket.join(`ip:${clientIp}`);
