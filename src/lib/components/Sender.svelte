@@ -19,6 +19,7 @@
   import QRCode from "qrcode";
 
   import TextSync from "./TextSync.svelte";
+  import LinkStats from "./LinkStats.svelte";
   import { cloudRelay } from "../services/cloud-relay";
   import { CloudUpload } from "lucide-svelte";
   import { cryptoUtils } from "../utils/crypto";
@@ -354,6 +355,7 @@
   </div>
 
   {#if isConnected}
+    <LinkStats />
     <TextSync />
   {/if}
 

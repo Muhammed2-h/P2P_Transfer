@@ -155,6 +155,8 @@ class P2PService {
             if (get(settings).soundsEnabled) {
                 playSound('connect');
             }
+            
+            this.startStatsMonitoring();
         };
 
         channel.onmessage = async (event) => {
@@ -720,7 +722,110 @@ class P2PService {
         this.cleanup();
     }
 
+    // --- Stats & Monitoring ---
+
+    async findNearbyPeers() {
+        return new Promise((resolve) => {
+            const socket = this.socket || io(SIGNALING_SERVER);
+            let resolved = false;
+
+            const cleanup = () => {
+                if (!this.socket) socket.disconnect(); // Only disconnect if we created it locally
+            };
+
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    socket.off('nearby-found');
+                    cleanup();
+                    resolve([]);
+                }
+            }, 3000);
+
+            socket.once('nearby-found', (nearby) => {
+                if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    cleanup();
+                    resolve(nearby);
+                }
+            });
+
+            socket.emit('find-nearby');
+        });
+    }
+
+    startStatsMonitoring() {
+        if (this.statsInterval) clearInterval(this.statsInterval);
+
+        this.statsInterval = setInterval(async () => {
+            if (!this.peerConnection || this.peerConnection.connectionState !== 'connected') return;
+
+            try {
+                const stats = await this.peerConnection.getStats();
+                let latency = 0;
+                let connectionType = 'unknown';
+                let bytesSent = 0;
+                let bytesReceived = 0;
+
+                stats.forEach(report => {
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        latency = report.currentRoundTripTime * 1000 || 0;
+                    }
+                    if (report.type === 'remote-candidate' && report.candidateType) {
+                        connectionType = report.candidateType; // host, srflx, relay
+                    }
+                    // Fallback for connection type if local is easier to read
+                    if (report.type === 'local-candidate' && report.candidateType && connectionType === 'unknown') {
+                        // This usually shows OUR type, but useful inference
+                    }
+                    
+                    if (report.type === 'outbound-rtp' && !report.isRemote) {
+                         // Fallback speed calc if needed, but we do it nicely in logic
+                    }
+                });
+                
+                // Map complex types to user friendly
+                const typeMap = {
+                    'host': 'Local LAN (Fastest)',
+                    'srflx': 'P2P (STUN)',
+                    'prflx': 'P2P (Nat)',
+                    'relay': 'Relay (TURN/Slow)'
+                };
+
+                const friendlyType = typeMap[connectionType] || connectionType;
+                
+                // Buffer Health
+                const buffer = this.dataChannel ? this.dataChannel.bufferedAmount : 0;
+                const bufferHealth = buffer < BUFFER_THRESHOLD ? 'Healthy' : 'Congested';
+
+                transfer.update(s => ({
+                    ...s,
+                    networkStats: {
+                        latency: Math.round(latency),
+                        connectionType: friendlyType,
+                        bufferHealth: bufferHealth,
+                        bufferSize: buffer
+                    }
+                }));
+
+            } catch (e) {
+                console.warn("Stats error", e);
+            }
+        }, 1000);
+    }
+
+    stopStatsMonitoring() {
+        if (this.statsInterval) {
+            clearInterval(this.statsInterval);
+            this.statsInterval = null;
+        }
+    }
+
+    // --- Cleanup ---
+
     cleanup() {
+        this.stopStatsMonitoring();
         if (this.peerConnection) {
             this.peerConnection.close();
             this.peerConnection = null;
