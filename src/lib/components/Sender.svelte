@@ -21,6 +21,8 @@
   import TextSync from "./TextSync.svelte";
   import { cloudRelay } from "../services/cloud-relay";
   import { CloudUpload } from "lucide-svelte";
+  import { cryptoUtils } from "../utils/crypto";
+  import JSZip from "jszip";
 
   let sessionId = "";
   let qrCodeUrl = "";
@@ -81,6 +83,75 @@
     p2p.acceptFile();
   }
 
+  // Folder Zipping Logic
+  let isZipping = false;
+
+  async function handleDrop(e) {
+    if (!isConnected) return;
+    const items = e.dataTransfer.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const entry = item.webkitGetAsEntry();
+      if (entry) {
+        if (entry.isFile) {
+          entry.file((file) => p2p.addToQueue(file));
+        } else if (entry.isDirectory) {
+          isZipping = true;
+          try {
+            const zip = new JSZip();
+            await addDirectoryToZip(zip, entry);
+            const content = await zip.generateAsync({ type: "blob" });
+            // Create a File object
+            const file = new File([content], `${entry.name}.zip`, {
+              type: "application/zip",
+              lastModified: new Date().getTime(),
+            });
+            p2p.addToQueue(file);
+          } catch (err) {
+            console.error("Zip Error", err);
+            alert("Failed to zip folder: " + err.message);
+          } finally {
+            isZipping = false;
+          }
+        }
+      }
+    }
+  }
+
+  function addDirectoryToZip(zip, dirEntry) {
+    const reader = dirEntry.createReader();
+    return new Promise((resolve, reject) => {
+      const readEntries = () => {
+        reader.readEntries(async (entries) => {
+          if (entries.length === 0) {
+            resolve();
+            return;
+          }
+
+          const promises = entries.map(async (entry) => {
+            if (entry.isDirectory) {
+              await addDirectoryToZip(zip.folder(entry.name), entry);
+            } else {
+              await new Promise((resFile, rejFile) => {
+                entry.file((file) => {
+                  zip.file(entry.name, file);
+                  resFile();
+                }, rejFile);
+              });
+            }
+          });
+
+          await Promise.all(promises);
+          // Recursively call for more entries in same dir (pagination)
+          readEntries();
+        }, reject);
+      };
+      readEntries();
+    });
+  }
+
   // Cloud Transfer Logic
   let isCloudUploading = false;
   let cloudProgress = 0;
@@ -91,13 +162,32 @@
     cloudProgress = 0;
 
     try {
-      const result = await cloudRelay.upload(file, (progress) => {
+      // 1. Generate Key and Encrypt
+      const key = await cryptoUtils.generateKey();
+      const { blob: encryptedBlob, iv } = await cryptoUtils.encryptBlob(
+        file,
+        key,
+      );
+
+      // 2. Upload Encrypted Blob
+      const result = await cloudRelay.upload(encryptedBlob, (progress) => {
         cloudProgress = progress;
       });
 
-      // Send link via chat
+      // 3. Export Key/IV for sharing
+      const keyB64 = await cryptoUtils.exportKey(key);
+      const ivB64 = cryptoUtils.arrayBufferToBase64(iv);
+
+      // 4. Send "Vault" Message
       p2p.sendChatMessage({
-        text: `🚀 **Fast Cloud Transfer**\nDownload ${file.name} here (expires in 14 days):\n${result.link}`,
+        text: `🔒 **Encrypted Vault Transfer**: ${file.name}`,
+        cloudEntry: {
+          name: file.name,
+          size: file.size,
+          url: result.link,
+          key: keyB64,
+          iv_b64: ivB64,
+        },
       });
 
       // Also add to history as completed
@@ -253,6 +343,8 @@
       class:disabled={!isConnected}
       on:click={() => fileInput.click()}
       on:keydown={(e) => e.key === "Enter" && fileInput.click()}
+      on:dragover|preventDefault
+      on:drop|preventDefault={handleDrop}
     >
       <input
         type="file"
@@ -265,10 +357,12 @@
       <div class="icon">
         <File size={48} />
       </div>
-      {#if !isConnected}
+      {#if isZipping}
+        <p>📦 Zipping folder... please wait</p>
+      {:else if !isConnected}
         <p>Wait for connection...</p>
       {:else}
-        <p>Click to add files to queue (Unlimited Size)</p>
+        <p>Click, or Drag & Drop Files/Folders</p>
       {/if}
     </div>
   {/if}

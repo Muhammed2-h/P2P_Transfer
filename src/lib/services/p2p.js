@@ -431,6 +431,7 @@ class P2PService {
                     id: msg.id, // now sending IDs
                     text: msg.text,
                     image: msg.image, // base64 string
+                    cloudEntry: msg.cloudEntry,
                     replyTo: msg.replyTo,
                     sender: 'peer',
                     time: Date.now()
@@ -588,6 +589,7 @@ class P2PService {
             id: id,
             text: payload.text,
             image: payload.image,
+            cloudEntry: payload.cloudEntry, // { name, size, url, key, iv }
             replyTo: payload.replyTo
         };
 

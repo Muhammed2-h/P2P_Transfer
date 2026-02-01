@@ -12,8 +12,11 @@
     Camera,
     Plus,
     Video,
+    Lock,
+    Download,
   } from "lucide-svelte";
   import { afterUpdate } from "svelte";
+  import { cryptoUtils } from "../utils/crypto";
 
   let input = "";
   let chatContainer;
@@ -282,6 +285,37 @@
       setTimeout(() => el.classList.remove("flash-highlight"), 2000);
     }
   }
+
+  // Handle Vault Download
+  async function downloadCloudFile(entry) {
+    try {
+      const response = await fetch(entry.url);
+      if (!response.ok) throw new Error("Network Error");
+      const blob = await response.blob();
+
+      // Convert Key/IV from base64/array
+      const key = await cryptoUtils.importKey(entry.key);
+      // IV is transfered as Array usually, but if JSONified might need care.
+      // We assume p2p.js passed it correctly. Check serialization in Sender.
+      // Wait, JSON.stringify converts Uint8Array to Object {0:.., 1:..} usually.
+      // We should ensure it's base64 encoded when sent, or fixing it here.
+      // Let's assume Sender base64 encoded it.
+      const iv = cryptoUtils.base64ToArrayBuffer(entry.iv_b64);
+
+      const decryptedBlob = await cryptoUtils.decryptBlob(blob, key, iv);
+
+      // Save
+      const url = URL.createObjectURL(decryptedBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = entry.name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Decryption Download Failed", e);
+      alert("Failed to decrypt or download file.");
+    }
+  }
 </script>
 
 {#if $transfer.state === TRANSFER_STATES.CONNECTED || $transfer.state === TRANSFER_STATES.TRANSFERRING || $transfer.state === TRANSFER_STATES.WAITING_ACCEPTANCE || $transfer.state === TRANSFER_STATES.PAUSED || $transfer.state === TRANSFER_STATES.COMPLETED}
@@ -384,6 +418,28 @@
                       >{/if}
                   </p>
                 {/if}
+
+                {#if msg.cloudEntry}
+                  <div class="vault-bubble">
+                    <div class="vault-icon">
+                      <Lock size={20} color="#10b981" />
+                    </div>
+                    <div class="vault-info">
+                      <span class="vault-title">Encrypted Vault File</span>
+                      <span class="vault-name">{msg.cloudEntry.name}</span>
+                      <span class="vault-size"
+                        >{(msg.cloudEntry.size / 1024 / 1024).toFixed(2)} MB</span
+                      >
+                    </div>
+                    <button
+                      class="vault-download-btn"
+                      on:click={() => downloadCloudFile(msg.cloudEntry)}
+                    >
+                      <Download size={16} />
+                    </button>
+                  </div>
+                {/if}
+
                 <span class="time">{formatTime(msg.time)}</span>
 
                 <!-- Hover Actions -->
@@ -1036,5 +1092,81 @@
 
   .spacer {
     width: 48px;
+  }
+
+  .qr-toggle-btn.active {
+    color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--primary-color);
+  }
+
+  /* Vault Bubble Styles */
+  .vault-bubble {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 0.75rem;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+    min-width: 200px;
+  }
+
+  .vault-icon {
+    background: rgba(16, 185, 129, 0.2);
+    padding: 0.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .vault-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .vault-title {
+    font-size: 0.7rem;
+    color: #10b981;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .vault-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--text-primary);
+  }
+
+  .vault-size {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  .vault-download-btn {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .vault-download-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
   }
 </style>
