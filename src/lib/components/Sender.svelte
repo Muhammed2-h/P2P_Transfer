@@ -56,6 +56,11 @@
   }
 
   let connectionRequest = false;
+  let nearbyPeers = [];
+  let unsubscribeDiscovery;
+
+  import { Monitor, Wifi } from "lucide-svelte";
+  import { onDestroy } from "svelte";
 
   onMount(() => {
     initSession();
@@ -65,7 +70,23 @@
       connectionRequest = true;
       playSound("notification");
     });
+
+    // Auto-Discovery: See if anyone else is hosting (Switch Role)
+    unsubscribeDiscovery = p2p.subscribeToNearby((peers) => {
+      // Filter out my own session
+      nearbyPeers = peers.filter((p) => p !== sessionId);
+    });
   });
+
+  onDestroy(() => {
+    if (unsubscribeDiscovery) unsubscribeDiscovery();
+    p2p.cleanup();
+  });
+
+  function joinPeer(code) {
+    // Switch to Receiver Mode
+    window.location.href = `/?code=${code}`;
+  }
 
   function approveConnection() {
     p2p.approveConnection();
@@ -825,8 +846,10 @@
   .qr-container {
     margin-top: 1.5rem;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
+    gap: 1.5rem;
   }
 
   .qr-box {
