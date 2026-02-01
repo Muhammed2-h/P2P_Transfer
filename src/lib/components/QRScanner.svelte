@@ -36,12 +36,26 @@
     cancelAnimationFrame(animationId);
   });
 
+  let zoom = 1;
+  let manualInput = "";
+  let showManual = false;
+
   function tick() {
     if (video && video.readyState === video.HAVE_ENOUGH_DATA) {
       canvas.height = video.videoHeight;
       canvas.width = video.videoWidth;
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Clear
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Calculate Zoomed Bounds
+      const w = canvas.width / zoom;
+      const h = canvas.height / zoom;
+      const x = (canvas.width - w) / 2;
+      const y = (canvas.height - h) / 2;
+
+      ctx.drawImage(video, x, y, w, h, 0, 0, canvas.width, canvas.height);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height, {
         inversionAttempts: "dontInvert",
@@ -52,6 +66,12 @@
       }
     }
     animationId = requestAnimationFrame(tick);
+  }
+
+  function handleManual() {
+    if (manualInput.trim()) {
+      dispatch("scan", manualInput.trim());
+    }
   }
 </script>
 
@@ -64,19 +84,43 @@
       </button>
     </div>
 
-    <div class="viewport">
-      {#if error}
-        <div class="error-state">
-          <p>{error}</p>
-        </div>
-      {:else}
-        <video bind:this={video}></video>
-        <canvas bind:this={canvas} style="display: none;"></canvas>
-        <div class="scanners-frame"></div>
-      {/if}
-    </div>
+    {#if !showManual}
+      <div
+        class="viewport"
+        style="transform: scale({zoom}); transform-origin: center;"
+      >
+        {#if error}
+          <div class="error-state">
+            <p>{error}</p>
+          </div>
+        {:else}
+          <video bind:this={video}></video>
+          <canvas bind:this={canvas} style="display: none;"></canvas>
+          <div class="scanners-frame"></div>
+        {/if}
+      </div>
 
-    <p class="hint">Point your camera at the QR code</p>
+      <div class="controls-row">
+        <span>Zoom</span>
+        <input type="range" min="1" max="3" step="0.1" bind:value={zoom} />
+      </div>
+
+      <p class="hint">Point camera at QR code</p>
+      <button class="text-btn" on:click={() => (showManual = true)}
+        >Type code manually</button
+      >
+    {:else}
+      <div class="manual-box">
+        <p>Paste the handshake code from the other device:</p>
+        <textarea bind:value={manualInput} placeholder="v1|a|..."></textarea>
+        <div class="btn-group">
+          <button class="btn-secondary" on:click={() => (showManual = false)}
+            >Back to Camera</button
+          >
+          <button class="btn-primary" on:click={handleManual}>Connect</button>
+        </div>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -118,6 +162,7 @@
     border-radius: var(--radius-md);
     overflow: hidden;
     border: 1px solid var(--glass-border);
+    transition: transform 0.1s ease-out;
   }
 
   video {
@@ -135,6 +180,54 @@
     border: 2px solid var(--primary-color);
     border-radius: 12px;
     box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+  }
+
+  .controls-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+  }
+
+  .controls-row input {
+    flex: 1;
+  }
+
+  .manual-box {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: white;
+    padding: 0.75rem;
+    border-radius: 8px;
+    min-height: 120px;
+    font-family: monospace;
+    font-size: 0.8rem;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .btn-group button {
+    flex: 1;
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .text-btn {
+    background: none;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+    text-decoration: underline;
   }
 
   .hint {
