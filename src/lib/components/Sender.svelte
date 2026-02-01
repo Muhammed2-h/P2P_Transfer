@@ -76,7 +76,33 @@
       // Filter out my own session
       nearbyPeers = peers.filter((p) => p !== sessionId);
     });
+
+    // Handle PWA Share Target
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("shared") === "1") {
+      handlePwaShare();
+    }
   });
+
+  async function handlePwaShare() {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      if (reg.active) reg.active.postMessage("GET_SHARED_FILES");
+
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data.type === "SHARED_FILES") {
+          const files = event.data.files;
+          if (files && files.length > 0) {
+            files.forEach((f) => p2p.addToQueue(f));
+            // Clean URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete("shared");
+            window.history.replaceState({}, "", url.pathname);
+          }
+        }
+      });
+    }
+  }
 
   onDestroy(() => {
     if (unsubscribeDiscovery) unsubscribeDiscovery();

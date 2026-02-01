@@ -29,7 +29,26 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch Event
+let sharedFiles = null;
+
 self.addEventListener('fetch', (event) => {
+    const url = new URL(event.request.url);
+
+    // Handle PWA Share Target (POST /share)
+    if (event.request.method === 'POST' && url.pathname === '/share') {
+        event.respondWith((async () => {
+            try {
+                const formData = await event.request.formData();
+                sharedFiles = formData.getAll('files');
+                // Redirect to homepage with a flag to trigger retrieval
+                return Response.redirect('/?shared=1', 303);
+            } catch (err) {
+                return Response.redirect('/', 303);
+            }
+        })());
+        return;
+    }
+
     // Network first for the main HTML to avoid caching errors
     if (event.request.mode === 'navigate') {
         event.respondWith(
@@ -45,4 +64,17 @@ self.addEventListener('fetch', (event) => {
             return response || fetch(event.request);
         })
     );
+});
+
+// Communication with the App
+self.addEventListener('message', (event) => {
+    if (event.data === 'GET_SHARED_FILES') {
+        if (sharedFiles) {
+            event.source.postMessage({ 
+                type: 'SHARED_FILES', 
+                files: sharedFiles 
+            });
+            sharedFiles = null; // Consume
+        }
+    }
 });
