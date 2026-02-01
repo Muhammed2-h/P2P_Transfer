@@ -512,12 +512,20 @@ class P2PService {
     async flushBuffer() {
         if (!this.fileWriter || this.receiveBufferSize === 0) return;
 
-        const blob = new Blob(this.receiveBuffer);
-        await this.fileWriter.write(blob);
-
-        // Clear buffer
+        // CRITICAL FIX: Atomic Swap
+        // Capture the current buffer and reset the instance storage immediately.
+        // This prevents incoming chunks (arriving during the async write) from being deleted.
+        const chunksToWrite = this.receiveBuffer;
         this.receiveBuffer = [];
         this.receiveBufferSize = 0;
+
+        try {
+            const blob = new Blob(chunksToWrite);
+            await this.fileWriter.write(blob);
+        } catch (err) {
+            console.error("Disk Write Error:", err);
+            transfer.update(s => ({ ...s, error: 'Disk write failed', state: TRANSFER_STATES.ERROR }));
+        }
     }
 
     async finalizeFile() {
