@@ -85,6 +85,7 @@
 
   // Folder Zipping Logic
   let isZipping = false;
+  let zipProgress = 0;
 
   async function handleDrop(e) {
     if (!isConnected) return;
@@ -99,10 +100,22 @@
           entry.file((file) => p2p.addToQueue(file));
         } else if (entry.isDirectory) {
           isZipping = true;
+          zipProgress = 0;
           try {
             const zip = new JSZip();
             await addDirectoryToZip(zip, entry);
-            const content = await zip.generateAsync({ type: "blob" });
+
+            const content = await zip.generateAsync(
+              {
+                type: "blob",
+                compression: "DEFLATE",
+                compressionOptions: { level: 6 },
+              },
+              (metadata) => {
+                zipProgress = metadata.percent;
+              },
+            );
+
             // Create a File object
             const file = new File([content], `${entry.name}.zip`, {
               type: "application/zip",
@@ -367,7 +380,7 @@
         <File size={48} />
       </div>
       {#if isZipping}
-        <p>📦 Zipping folder... please wait</p>
+        <p>📦 Zipping folder... {zipProgress.toFixed(0)}%</p>
       {:else if !isConnected}
         <p>Wait for connection...</p>
       {:else}
