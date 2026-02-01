@@ -306,7 +306,11 @@
         <button class="cam-btn close" on:click={closeCamera}>
           <X size={24} />
         </button>
-                <button class="cam-btn capture" on:click={capturePhoto} aria-label="Capture Photo">
+        <button
+          class="cam-btn capture"
+          on:click={capturePhoto}
+          aria-label="Capture Photo"
+        >
           <div class="inner-circle"></div>
         </button>
         <div class="spacer"></div>
@@ -341,13 +345,16 @@
             <div class="bubble-container">
               {#if msg.replyTo}
                 {@const replied = getReplyMsg(msg.replyTo)}
-                                    <div
-                                        class="reply-preview-bubble clickable"
-                                        role="button"
-                                        tabindex="0"
-                                        on:click={() => scrollToMsg(msg.replyTo)}
-                                        on:keydown={(e) => e.key === "Enter" && scrollToMsg(msg.replyTo)}
-                                    >     <div class="reply-bar"></div>
+                {#if replied}
+                  <div
+                    class="reply-preview-bubble clickable"
+                    role="button"
+                    tabindex="0"
+                    on:click={() => scrollToMsg(msg.replyTo)}
+                    on:keydown={(e) =>
+                      e.key === "Enter" && scrollToMsg(msg.replyTo)}
+                  >
+                    <div class="reply-bar"></div>
                     <span class="reply-sender"
                       >{replied.sender === "me" ? "You" : "Peer"}</span
                     >
