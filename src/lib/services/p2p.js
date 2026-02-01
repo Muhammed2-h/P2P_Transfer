@@ -8,18 +8,21 @@ import { settings } from '../stores/settings';
 
 // Configurations
 // Configurations
-const CHUNK_SIZE = 64 * 1024; // 64KB (More granular for congestion control)
-const BUFFER_THRESHOLD = 512 * 1024; // 512KB (Drastically reduced to prevent Bufferbloat/High Ping)
-const UI_UPDATE_INTERVAL = 100; // ms (Update UI slightly more often for smoother feel)
-const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000'; // Dynamic URL for production
+// Configurations
+const CHUNK_SIZE = 16 * 1024; // 16KB (Best for WiFi stability and low jitter)
+const BUFFER_THRESHOLD = 256 * 1024; // 256KB (Keeps the network responsive)
+const UI_UPDATE_INTERVAL = 100; // ms
+const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000';
 
 const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:global.stun.twilio.com:3478' }
     ],
-    iceTransportPolicy: 'all', // Ensure we allow local candidates
-    bundlePolicy: 'max-bundle'
+    iceCandidatePoolSize: 10, // Pre-gather candidates for instant LAN connection
+    iceTransportPolicy: 'all',
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require'
 };
 
 class P2PService {
@@ -805,11 +808,13 @@ class P2PService {
 
                 // 2. Find the Active Candidate Pair
                 stats.forEach(report => {
-                    // Check for standard 'candidate-pair' with 'succeeded' state.
-                    // Some browsers use 'nominated' boolean.
-                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-                        // If multiple succeeded, prefer the one with highest priority or just the latest (usually only one active)
-                        activePair = report;
+                    // Modern Browsers: 'nominated' pair is the one doing the work
+                    // Fallback: 'succeeded' state
+                    if (report.type === 'candidate-pair' && (report.nominated || report.state === 'succeeded')) {
+                        // If we already found one, only replace if this one has higher bytesSent/Received (more active)
+                        if (!activePair || (report.bytesSent + report.bytesReceived > activePair.bytesSent + activePair.bytesReceived)) {
+                            activePair = report;
+                        }
                     }
                 });
 
