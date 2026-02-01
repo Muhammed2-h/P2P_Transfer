@@ -27,10 +27,21 @@
   let showPwaBanner = false;
 
   onMount(() => {
+    const isDismissed = localStorage.getItem("pwa_dismissed");
+    const dismissedTime = isDismissed ? parseInt(isDismissed) : 0;
+    const now = Date.now();
+    const coolDown = 7 * 24 * 60 * 60 * 1000; // 7 days
+
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      showPwaBanner = true;
+
+      // Show only if not dismissed recently
+      if (!isDismissed || now - dismissedTime > coolDown) {
+        setTimeout(() => {
+          showPwaBanner = true;
+        }, 3000); // Wait 3s before annoying the user
+      }
     });
 
     window.addEventListener("appinstalled", () => {
@@ -47,6 +58,11 @@
     console.log(`User response: ${outcome}`);
     deferredPrompt = null;
     showPwaBanner = false;
+  }
+
+  function dismissPwa() {
+    showPwaBanner = false;
+    localStorage.setItem("pwa_dismissed", Date.now().toString());
   }
 </script>
 
@@ -79,7 +95,7 @@
         <button class="btn-primary btn-install" on:click={handleInstall}>
           <Download size={18} /> Install
         </button>
-        <button class="btn-close" on:click={() => (showPwaBanner = false)}>
+        <button class="btn-close" on:click={dismissPwa}>
           <X size={20} />
         </button>
       </div>
