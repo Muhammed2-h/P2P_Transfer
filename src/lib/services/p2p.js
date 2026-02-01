@@ -12,6 +12,7 @@ const BUFFER_THRESHOLD = 256 * 1024; // 256KB
 const UI_UPDATE_INTERVAL = 100; // ms
 const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000';
 
+/** @type {RTCConfiguration} */
 const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -42,6 +43,7 @@ class P2PService {
         this.writeThreshold = 4 * 1024 * 1024; // 4MB Write Batch (Smoother progression)
         
         this.useFileSystemApi = false; // Flag for mobile fallback
+        this.isStreaming = false;
     }
 
     // --- Signaling ---
@@ -203,6 +205,12 @@ class P2PService {
                 playSound('connect');
             }
             
+            // Sync initial queue if we already have files queued
+            const currentQueue = get(transfer).fileQueue;
+            if (currentQueue.length > 0) {
+                this.sendQueueUpdate(currentQueue);
+            }
+
             this.startStatsMonitoring();
         };
 
@@ -314,73 +322,84 @@ class P2PService {
     }
 
     async startStreaming() {
+        if (this.isStreaming) return;
         const file = this.currentFile;
         if (!file) return;
+        
+        this.isStreaming = true;
 
-        if (get(settings).soundsEnabled) {
-            playSound('start');
-        }
-
-        this.startTime = Date.now();
-        this.lastUiUpdate = this.startTime;
-        this.transferredBytes = 0;
-        let offset = 0;
-
-        const readSlice = async (o) => {
-            const slice = file.slice(o, o + CHUNK_SIZE);
-            return await slice.arrayBuffer();
-        };
-
-        const flush = async () => {
-            // Pipeline: Start reading the first chunk immediately
-            let nextChunkPromise = readSlice(offset);
-
-            while (offset < file.size) {
-                // Check backpressure
-                if (this.dataChannel.bufferedAmount > BUFFER_THRESHOLD) {
-                    await new Promise(resolve => {
-                        this.dataChannel.onbufferedamountlow = () => {
-                            this.dataChannel.onbufferedamountlow = null;
-                            resolve();
-                        };
-                    });
-                }
-
-                // Wait for the chunk that was being read
-                const chunk = await nextChunkPromise;
-
-                // Move offset forward
-                offset += chunk.byteLength;
-                this.transferredBytes = offset;
-
-                // Start reading the NEXT chunk while we send the current one
-                if (offset < file.size) {
-                    nextChunkPromise = readSlice(offset);
-                }
-
-                this.dataChannel.send(chunk);
-
-                // Throttle UI
-                this.updateProgress(offset, false);
-
-                // Pause logic
-                if (this.isPaused) {
-                    await new Promise(resolve => {
-                        const check = setInterval(() => {
-                            if (!this.isPaused) {
-                                clearInterval(check);
-                                resolve();
-                            }
-                        }, 50);
-                    });
-                }
+        try {
+            if (get(settings).soundsEnabled) {
+                playSound('start');
             }
 
-            this.updateProgress(file.size, true);
-            this.dataChannel.send(JSON.stringify({ type: 'EOF' }));
-        };
+            this.startTime = Date.now();
+            this.lastUiUpdate = this.startTime;
+            this.transferredBytes = 0;
+            let offset = 0;
 
-        await flush();
+            const readSlice = async (o) => {
+                const slice = file.slice(o, o + CHUNK_SIZE);
+                return await slice.arrayBuffer();
+            };
+
+            const flush = async () => {
+                // Pipeline: Start reading the first chunk immediately
+                let nextChunkPromise = readSlice(offset);
+
+                while (offset < file.size) {
+                    // Check backpressure
+                    if (this.dataChannel.bufferedAmount > BUFFER_THRESHOLD) {
+                        await new Promise(resolve => {
+                            const thresholdHandler = () => {
+                                this.dataChannel.onbufferedamountlow = null;
+                                resolve();
+                            };
+                            this.dataChannel.onbufferedamountlow = thresholdHandler;
+                            
+                            // Safety: Resolve anyway after a timeout or if connection closes
+                            setTimeout(thresholdHandler, 5000); 
+                        });
+                    }
+
+                    // Wait for the chunk that was being read
+                    const chunk = await nextChunkPromise;
+
+                    // Move offset forward
+                    offset += chunk.byteLength;
+                    this.transferredBytes = offset;
+
+                    // Start reading the NEXT chunk while we send the current one
+                    if (offset < file.size) {
+                        nextChunkPromise = readSlice(offset);
+                    }
+
+                    this.dataChannel.send(chunk);
+
+                    // Throttle UI
+                    this.updateProgress(offset, false);
+
+                    // Pause logic
+                    if (this.isPaused) {
+                        await new Promise(resolve => {
+                            const check = setInterval(() => {
+                                if (!this.isPaused) {
+                                    clearInterval(check);
+                                    resolve();
+                                }
+                            }, 50);
+                        });
+                    }
+                }
+
+                this.updateProgress(file.size, true);
+                this.dataChannel.send(JSON.stringify({ type: 'EOF' }));
+            };
+
+            await flush();
+        } finally {
+            this.isStreaming = false;
+        }
     }
 
     // --- Receiving Logic ---
@@ -485,7 +504,7 @@ class P2PService {
                 };
                 transfer.update(s => ({
                     ...s,
-                    messages: [...s.messages, newMsg]
+                    messages: [...s.messages, newMsg].slice(-100) // Cap history for RAM safety
                 }));
                 if (get(settings).soundsEnabled) {
                     playSound('connect');
@@ -534,7 +553,6 @@ class P2PService {
                 this.useFileSystemApi = true;
             } else {
                 // Mobile Fallback: Buffer in RAM and download at end
-                console.log("FileSystem API not supported. Falling back to RAM buffering.");
                 this.useFileSystemApi = false;
                 
                 // Optional: Warn user if file is huge (> 500MB) for RAM safety on older phones
@@ -677,7 +695,7 @@ class P2PService {
             // Add to local state
             transfer.update(s => ({
                 ...s,
-                messages: [...s.messages, { ...msgData, sender: 'me', time: Date.now() }]
+                messages: [...s.messages, { ...msgData, sender: 'me', time: Date.now() }].slice(-100)
             }));
         }
     }
@@ -913,10 +931,12 @@ class P2PService {
             this.socket = null;
         }
         if (this.fileWriter) {
-            this.fileWriter.close().catch(e => console.error(e));
+            this.fileWriter.close().catch(e => {});
             this.fileWriter = null;
         }
+        this.stopDiscovery(); // Ensure discovery is stopped
         this.isPaused = false;
+        this.isStreaming = false;
         transfer.reset();
     }
 }
