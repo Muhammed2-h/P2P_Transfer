@@ -18,13 +18,20 @@
   import TextSync from "./TextSync.svelte";
   import LinkStats from "./LinkStats.svelte";
 
+  import { onDestroy } from "svelte";
+
+  // ... imports
+
   let code = "";
   let fileInput;
   let nearbyPeers = [];
+  let unsubscribeDiscovery;
 
-  onMount(async () => {
-    // Auto-Discovery
-    nearbyPeers = await p2p.findNearbyPeers();
+  onMount(() => {
+    // Real-Time Auto-Discovery
+    unsubscribeDiscovery = p2p.subscribeToNearby((peers) => {
+      nearbyPeers = peers;
+    });
 
     const urlParams = new URLSearchParams(window.location.search);
     const urlCode = urlParams.get("code");
@@ -40,6 +47,10 @@
         }, 300);
       }
     }
+  });
+
+  onDestroy(() => {
+    if (unsubscribeDiscovery) unsubscribeDiscovery();
   });
 
   function handleFileSelect(e) {

@@ -724,35 +724,31 @@ class P2PService {
 
     // --- Stats & Monitoring ---
 
-    async findNearbyPeers() {
-        return new Promise((resolve) => {
-            const socket = this.socket || io(SIGNALING_SERVER);
-            let resolved = false;
+    // --- Discovery (Real-time) ---
 
-            const cleanup = () => {
-                if (!this.socket) socket.disconnect(); // Only disconnect if we created it locally
-            };
+    subscribeToNearby(callback) {
+        // Use existing socket or create a dedicated one if we are just browsing
+        if (!this.discoverySocket) {
+             this.discoverySocket = io(SIGNALING_SERVER);
+        }
 
-            const timeout = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    socket.off('nearby-found');
-                    cleanup();
-                    resolve([]);
-                }
-            }, 3000);
-
-            socket.once('nearby-found', (nearby) => {
-                if (!resolved) {
-                    resolved = true;
-                    clearTimeout(timeout);
-                    cleanup();
-                    resolve(nearby);
-                }
-            });
-
-            socket.emit('find-nearby');
+        // Handle updates
+        this.discoverySocket.on('nearby-found', (nearby) => {
+            callback(nearby);
         });
+        
+        // Trigger initial fetch
+        this.discoverySocket.emit('find-nearby');
+
+        // Return cleanup function
+        return () => this.stopDiscovery();
+    }
+
+    stopDiscovery() {
+        if (this.discoverySocket) {
+            this.discoverySocket.disconnect();
+            this.discoverySocket = null;
+        }
     }
 
     startStatsMonitoring() {
