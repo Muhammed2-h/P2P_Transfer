@@ -7,8 +7,9 @@ import { playSound } from '../utils/sounds';
 import { settings } from '../stores/settings';
 
 // Configurations
-const CHUNK_SIZE = 256 * 1024; // 256KB (Max safe size for Chrome)
-const BUFFER_THRESHOLD = 16 * 1024 * 1024; // 16MB buffer to keep the pipe absolutely full
+// Configurations
+const CHUNK_SIZE = 64 * 1024; // 64KB (More granular for congestion control)
+const BUFFER_THRESHOLD = 512 * 1024; // 512KB (Drastically reduced to prevent Bufferbloat/High Ping)
 const UI_UPDATE_INTERVAL = 100; // ms (Update UI slightly more often for smoother feel)
 const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000'; // Dynamic URL for production
 
@@ -16,7 +17,9 @@ const ICE_SERVERS = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:global.stun.twilio.com:3478' }
-    ]
+    ],
+    iceTransportPolicy: 'all', // Ensure we allow local candidates
+    bundlePolicy: 'max-bundle'
 };
 
 class P2PService {
@@ -35,7 +38,7 @@ class P2PService {
         // Batch Writing Optimization
         this.receiveBuffer = [];
         this.receiveBufferSize = 0;
-        this.writeThreshold = 32 * 1024 * 1024; // 32MB Write Batch
+        this.writeThreshold = 4 * 1024 * 1024; // 4MB Write Batch (Smoother progression)
     }
 
     // --- Signaling ---
@@ -175,6 +178,9 @@ class P2PService {
 
     setupDataChannel(channel) {
         channel.binaryType = 'arraybuffer';
+        
+        // Optimize for continuous flow without stalls
+        channel.bufferedAmountLowThreshold = BUFFER_THRESHOLD / 2;
 
         channel.onopen = () => {
             transfer.update(s => ({ ...s, state: TRANSFER_STATES.CONNECTED }));

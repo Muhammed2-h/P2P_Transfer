@@ -96,7 +96,7 @@
     input = ""; // Clear input or keep it? varied UX. clearing for now.
     // Focus input
     const el = document.querySelector(".chat-input");
-    if (el) el.focus();
+    if (el instanceof HTMLElement) el.focus();
   }
 
   function startEdit(msg) {
@@ -105,7 +105,7 @@
     replyTo = null;
     input = msg.text;
     const el = document.querySelector(".chat-input");
-    if (el) el.focus();
+    if (el instanceof HTMLElement) el.focus();
   }
 
   function cancelAction() {
@@ -122,6 +122,9 @@
     // Resize/Compress
     const reader = new FileReader();
     reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result !== "string") return;
+
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
@@ -157,7 +160,7 @@
         replyTo = null;
         showAttachMenu = false;
       };
-      img.src = event.target.result;
+      if (typeof result === "string") img.src = result;
     };
     reader.readAsDataURL(file);
 
@@ -207,6 +210,8 @@
       reader.readAsDataURL(blob);
       reader.onloadend = () => {
         const base64data = reader.result;
+        if (typeof base64data !== "string") return;
+
         // Check size!
         if (base64data.length > 5 * 1024 * 1024) {
           alert(
@@ -1099,11 +1104,12 @@
     width: 48px;
   }
 
-  .qr-toggle-btn.active {
+  /* Removed unused selector */
+  /*.qr-toggle-btn.active {
     color: var(--primary-color);
     background: rgba(99, 102, 241, 0.1);
     border-color: var(--primary-color);
-  }
+  }*/
 
   /* Vault Bubble Styles */
   .vault-bubble {
