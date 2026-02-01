@@ -7,10 +7,8 @@ import { playSound } from '../utils/sounds';
 import { settings } from '../stores/settings';
 
 // Configurations
-// Configurations
-// Configurations
-const CHUNK_SIZE = 16 * 1024; // 16KB (Best for WiFi stability and low jitter)
-const BUFFER_THRESHOLD = 256 * 1024; // 256KB (Keeps the network responsive)
+const CHUNK_SIZE = 16 * 1024; // 16KB (MTU-safe)
+const BUFFER_THRESHOLD = 256 * 1024; // 256KB
 const UI_UPDATE_INTERVAL = 100; // ms
 const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_SERVER || 'http://localhost:3000';
 
@@ -19,7 +17,7 @@ const ICE_SERVERS = {
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:global.stun.twilio.com:3478' }
     ],
-    iceCandidatePoolSize: 10, // Pre-gather candidates for instant LAN connection
+    iceCandidatePoolSize: 10,
     iceTransportPolicy: 'all',
     bundlePolicy: 'max-bundle',
     rtcpMuxPolicy: 'require'
@@ -205,9 +203,6 @@ class P2PService {
                 await this.handleChunk(data);
             }
         };
-
-        // For backpressure
-        channel.bufferedAmountLowThreshold = BUFFER_THRESHOLD / 4;
     }
 
     // --- Sending Logic ---

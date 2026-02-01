@@ -20,8 +20,6 @@
 
   import { onDestroy } from "svelte";
 
-  // ... imports
-
   let code = "";
   let fileInput;
   let nearbyPeers = [];
