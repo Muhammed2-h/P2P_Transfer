@@ -128,6 +128,10 @@
   let isCopied = false;
 
   function copyCode() {
+    if (!navigator.clipboard) {
+      alert("Clipboard access is only available over HTTPS or localhost.");
+      return;
+    }
     navigator.clipboard.writeText(sessionId);
     isCopied = true;
     setTimeout(() => (isCopied = false), 2000);

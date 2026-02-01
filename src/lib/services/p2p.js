@@ -40,11 +40,23 @@ class P2PService {
         this.receiveBuffer = [];
         this.receiveBufferSize = 0;
         this.writeThreshold = 4 * 1024 * 1024; // 4MB Write Batch (Smoother progression)
+        
+        this.useFileSystemApi = false; // Flag for mobile fallback
     }
 
     // --- Signaling ---
 
     init(sessionId, isSender) {
+        // Security check: WebRTC/Service Workers require HTTPS or localhost
+        if (!window.isSecureContext) {
+            transfer.update(s => ({ 
+                ...s, 
+                state: TRANSFER_STATES.ERROR, 
+                error: 'Security Error: This app requires a Secure Context (HTTPS or localhost). If testing on a local network, use a tunnel or enable HTTPS.' 
+            }));
+            return;
+        }
+
         const role = isSender ? 'sender' : 'receiver';
         transfer.update(s => ({ ...s, sessionId, role, state: TRANSFER_STATES.CONNECTING }));
 
@@ -512,14 +524,22 @@ class P2PService {
 
     async initFileSystem(name, size) {
         try {
-            // Show Save File Picker
+            // Show Save File Picker (Desktop Only)
             if (window['showSaveFilePicker']) {
                 const handle = await window['showSaveFilePicker']({
                     suggestedName: name,
                 });
                 this.fileWriter = await handle.createWritable();
+                this.useFileSystemApi = true;
             } else {
-                transfer.update(s => ({ ...s, error: 'Browser not supported. Use Chrome/Edge.', state: TRANSFER_STATES.ERROR }));
+                // Mobile Fallback: Buffer in RAM and download at end
+                console.log("FileSystem API not supported. Falling back to RAM buffering.");
+                this.useFileSystemApi = false;
+                
+                // Optional: Warn user if file is huge (> 500MB) for RAM safety on older phones
+                if (size > 500 * 1024 * 1024) {
+                    alert("⚠️ Large file detected. Mobile browsers might crash if RAM is low. Use desktop for 500MB+ transfers.");
+                }
             }
         } catch (err) {
             console.error("File Save Cancelled or Error", err);
@@ -528,8 +548,6 @@ class P2PService {
     }
 
     async handleChunk(buffer) {
-        if (!this.fileWriter) return;
-
         // Push to memory buffer
         this.receiveBuffer.push(buffer);
         this.receiveBufferSize += buffer.byteLength;
@@ -538,8 +556,8 @@ class P2PService {
         // Update UI (Throttled inside the method)
         this.updateProgress(this.transferredBytes);
 
-        // Flush to disk if threshold reached
-        if (this.receiveBufferSize >= this.writeThreshold) {
+        // Flush to disk if using FileSystem API and threshold reached
+        if (this.useFileSystemApi && this.fileWriter && this.receiveBufferSize >= this.writeThreshold) {
             await this.flushBuffer();
         }
     }
@@ -564,11 +582,27 @@ class P2PService {
     }
 
     async finalizeFile() {
-        if (this.fileWriter) {
-            // Write remaining data
+        if (this.useFileSystemApi && this.fileWriter) {
+            // Write remaining data to disk
             await this.flushBuffer();
             await this.fileWriter.close();
             this.fileWriter = null;
+        } else if (!this.useFileSystemApi) {
+            // Trigger Mobile Download (Blob Fallback)
+            const s = get(transfer);
+            const blob = new Blob(this.receiveBuffer);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = s.fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Clear memory
+            this.receiveBuffer = [];
+            this.receiveBufferSize = 0;
         }
 
         if (get(settings).soundsEnabled) {
@@ -628,7 +662,16 @@ class P2PService {
         };
 
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
-            this.dataChannel.send(JSON.stringify(msgData));
+            // Safety: Ensure message isn't so large it kills the connection
+            // Browsers typically crash/close if a single message exceeds ~256KB-1MB.
+            // We use 512KB as a safe limit.
+            const serialized = JSON.stringify(msgData);
+            if (serialized.length > 512 * 1024) {
+               transfer.update(s => ({ ...s, error: 'Chat attachment too large. Try a smaller file or send via the main File Sender.' }));
+               return;
+            }
+
+            this.dataChannel.send(serialized);
 
             // Add to local state
             transfer.update(s => ({
