@@ -1,7 +1,17 @@
 import { Server } from "socket.io";
+import { createServer } from "http";
 
 const PORT = process.env.PORT || 3000;
-const io = new Server(PORT, {
+
+// Create standard HTTP server for Health Checks/Keep-Alive
+const httpServer = createServer((req, res) => {
+    if (req.url === '/') {
+        res.writeHead(200);
+        res.end('Signaling Server is Running');
+    }
+});
+
+const io = new Server(httpServer, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
@@ -11,7 +21,9 @@ const io = new Server(PORT, {
 // Map<RoomId, { ip: string, created: number }>
 const roomMetadata = new Map();
 
-console.log(`Signaling server running on port ${PORT}`);
+httpServer.listen(PORT, () => {
+    console.log(`Signaling server running on port ${PORT}`);
+});
 
 // Helper: Broadcast nearby rooms to a specific IP group
 function broadcastNearby(ip) {
