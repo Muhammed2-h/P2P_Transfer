@@ -101,7 +101,6 @@
       });
 
       // Also add to history as completed
-      const id = uuidv4();
       // Just a dummy entry to show it was handled
       // You might want to remove it from the P2P queue if it was there
     } catch (err) {

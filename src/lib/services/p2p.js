@@ -526,42 +526,25 @@ class P2PService {
             await this.flushBuffer();
             await this.fileWriter.close();
             this.fileWriter = null;
-
-            // Notify completion
-            const s = get(transfer);
-            if (s.currentFileId) {
-                this.sendTransferSuccess(s.currentFileId);
-                this.updateQueueStatus(s.currentFileId, 'completed');
-                this.recordHistory(s.currentFileId, 'receiver');
-
-                transfer.update(st => ({
-                    ...st,
-                    state: TRANSFER_STATES.COMPLETED,
-                    progress: 100,
-                    timeLeft: 0
-                }));
-            }
-        }
-    }
-
-    async finalizeFile() {
-        if (this.fileWriter) {
-            await this.fileWriter.close();
-            this.fileWriter = null;
         }
 
         if (get(settings).soundsEnabled) {
             playSound('complete');
         }
 
-        // Use the ID we stored in METADATA handler
-        const currentId = get(transfer).currentFileId;
+        // Notify completion
+        const s = get(transfer);
+        if (s.currentFileId) {
+            this.sendTransferSuccess(s.currentFileId);
+            this.updateQueueStatus(s.currentFileId, 'completed');
+            this.recordHistory(s.currentFileId, 'receiver');
 
-        transfer.update(s => ({ ...s, state: TRANSFER_STATES.COMPLETED }));
-
-        if (currentId) { // Receiver sends success back
-            this.sendTransferSuccess(currentId);
-            this.recordHistory(currentId, 'receiver');
+            transfer.update(st => ({
+                ...st,
+                state: TRANSFER_STATES.COMPLETED,
+                progress: 100,
+                timeLeft: 0
+            }));
         }
     }
 
